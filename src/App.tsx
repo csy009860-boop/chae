@@ -28,12 +28,12 @@ import {
   CardContent, 
   CardHeader, 
   CardTitle 
-} from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Badge } from '@/components/ui/badge';
-import { Progress } from '@/components/ui/progress';
-import { ScrollArea } from '@/components/ui/scroll-area';
+} from './components/ui/card.tsx';
+import { Button } from './components/ui/button.tsx';
+import { Input } from './components/ui/input.tsx';
+import { Badge } from './components/ui/badge.tsx';
+import { Progress } from './components/ui/progress.tsx';
+import { ScrollArea } from './components/ui/scroll-area.tsx';
 import { 
   Dialog, 
   DialogContent, 
@@ -41,17 +41,17 @@ import {
   DialogTitle, 
   DialogTrigger,
   DialogFooter
-} from '@/components/ui/dialog';
-import { Label } from '@/components/ui/label';
+} from './components/ui/dialog.tsx';
+import { Label } from './components/ui/label.tsx';
 import { 
   Select, 
   SelectContent, 
   SelectItem, 
   SelectTrigger, 
   SelectValue 
-} from '@/components/ui/select';
-import { Checkbox } from '@/components/ui/checkbox';
-import { Separator } from '@/components/ui/separator';
+} from './components/ui/select.tsx';
+import { Checkbox } from './components/ui/checkbox.tsx';
+import { Separator } from './components/ui/separator.tsx';
 import { Project, ProjectStatus } from './types';
 import { mockProjects } from './lib/mockData';
 import { cn } from './lib/utils';
