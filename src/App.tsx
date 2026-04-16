@@ -449,7 +449,7 @@ export default function App() {
 
         {/* Add Project Dialog (Improved UI) */}
         <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
-          <DialogContent className="w-[1000px] max-w-[95vw] max-h-[90vh] overflow-y-auto p-0 border-none shadow-2xl">
+          <DialogContent className="sm:max-w-[1200px] w-[95vw] max-h-[90vh] overflow-y-auto p-0 border-none shadow-2xl">
             <div className="bg-sleek-sidebar p-8 text-white">
               <DialogHeader>
                 <DialogTitle className="text-2xl font-bold tracking-tight">새 프로젝트 생성</DialogTitle>
@@ -458,8 +458,8 @@ export default function App() {
             </div>
             
             <div className="p-8 space-y-8">
-              <div className="grid grid-cols-2 gap-x-8 gap-y-6">
-                <div className="space-y-2">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-x-8 gap-y-6">
+                <div className="space-y-2 md:col-span-2">
                   <Label className="text-xs font-bold text-slate-500 uppercase">프로젝트명</Label>
                   <Input 
                     value={newProject.name} 
@@ -513,6 +513,16 @@ export default function App() {
                   />
                 </div>
                 <div className="space-y-2">
+                  <Label className="text-xs font-bold text-slate-500 uppercase">마감일 (직접 입력)</Label>
+                  <Input 
+                    type="text" 
+                    value={newProject.deadline} 
+                    onChange={e => setNewProject({...newProject, deadline: e.target.value})}
+                    placeholder="예: 2024-12-31 또는 상시"
+                    className="h-11 border-slate-200"
+                  />
+                </div>
+                <div className="space-y-2">
                   <Label className="text-xs font-bold text-slate-500 uppercase">시작일</Label>
                   <Input 
                     type="date" 
@@ -527,16 +537,6 @@ export default function App() {
                     type="date" 
                     value={newProject.endDate} 
                     onChange={e => setNewProject({...newProject, endDate: e.target.value})}
-                    className="h-11 border-slate-200"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label className="text-xs font-bold text-slate-500 uppercase">마감일 (직접 입력)</Label>
-                  <Input 
-                    type="text" 
-                    value={newProject.deadline} 
-                    onChange={e => setNewProject({...newProject, deadline: e.target.value})}
-                    placeholder="예: 2024-12-31 또는 상시"
                     className="h-11 border-slate-200"
                   />
                 </div>
