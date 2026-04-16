@@ -1127,6 +1127,14 @@ function MiniSection({ title, count, items, variant = 'default', groupByCell = f
                       프로젝트: {item.name}
                     </span>
                   )}
+
+                  {item.status === 'completed' && item.deadline && (
+                    <div className="mt-1 flex justify-end">
+                      <span className="text-[11px] font-bold text-slate-500">
+                        마감일 - {item.deadline}
+                      </span>
+                    </div>
+                  )}
                 </div>
               ))}
             </div>
