@@ -228,8 +228,8 @@ export default function App() {
             active={!selectedProjectId} 
             onClick={() => { setSelectedProjectId(null); setIsEditing(false); }}
           />
-          <div className="pt-4 pb-2 px-4 text-[10px] font-bold text-slate-500 uppercase tracking-widest">Recent Projects</div>
-          {projects.slice(0, 10).map(p => (
+          <div className="pt-4 pb-2 px-4 text-[10px] font-bold text-slate-500 uppercase tracking-widest">Project List</div>
+          {filteredProjects.map(p => (
             <div 
               key={p.id} 
               onClick={() => { setSelectedProjectId(p.id); setIsEditing(false); }}
@@ -349,7 +349,7 @@ export default function App() {
             </div>
 
             {/* Details Table Area */}
-            <div className="min-h-[400px] flex-1 bg-white rounded-xl shadow-sm border border-sleek-border p-6 flex flex-col overflow-hidden">
+            <div className="bg-white rounded-xl shadow-sm border border-sleek-border p-6 flex flex-col">
               <div className="flex items-center justify-between mb-6">
                 <h3 className="font-bold text-base">전체 프로젝트 리스트</h3>
                 <div className="flex items-center gap-4">
@@ -373,10 +373,10 @@ export default function App() {
                 </div>
               </div>
 
-              <ScrollArea className="flex-1">
+              <div className="w-full">
                 <table className="w-full text-sm border-collapse">
                   <thead>
-                    <tr className="border-b-2 border-sleek-bg text-sleek-text-sub">
+                    <tr className="border-b-2 border-sleek-bg text-sleek-text-sub sticky top-0 bg-white z-10">
                       <th className="text-left p-3 font-semibold">작업명</th>
                       <th className="text-left p-3 font-semibold">상태</th>
                       <th className="text-left p-3 font-semibold">작업 셀</th>
@@ -442,7 +442,7 @@ export default function App() {
                     ))}
                   </tbody>
                 </table>
-              </ScrollArea>
+              </div>
             </div>
           </div>
         )}
@@ -675,13 +675,16 @@ function ProjectDetailView({ project, isEditing, setIsEditing, onUpdate, onBack 
       <ScrollArea className="flex-1 p-8">
         <div className="max-w-5xl mx-auto space-y-10">
           {/* Basic Info Section */}
-          <section className="space-y-6">
-            <div className="flex items-center justify-between">
-              <h3 className="text-sm font-bold text-slate-400 uppercase tracking-widest">기본 정보</h3>
+          <section className="bg-white rounded-2xl shadow-sm border border-slate-100 p-8 space-y-8">
+            <div className="flex items-center justify-between border-b border-slate-50 pb-4">
+              <h3 className="text-sm font-bold text-slate-800 uppercase tracking-widest flex items-center gap-2">
+                <div className="w-1 h-4 bg-sleek-primary rounded-full" />
+                기본 정보
+              </h3>
               <StatusTag status={isEditing ? editData.status : project.status} />
             </div>
             
-            <div className="grid grid-cols-3 gap-8">
+            <div className="grid grid-cols-3 gap-x-12 gap-y-8">
               <DetailItem label="프로젝트명" value={project.name} isEditing={isEditing}>
                 <Input value={editData.name} onChange={e => setEditData({...editData, name: e.target.value})} className="h-9" />
               </DetailItem>
@@ -738,10 +741,13 @@ function ProjectDetailView({ project, isEditing, setIsEditing, onUpdate, onBack 
           <Separator className="bg-slate-50" />
 
           {/* Lists Section */}
-          <div className="grid grid-cols-2 gap-12">
-            <section className="space-y-6">
-              <h3 className="text-sm font-bold text-slate-400 uppercase tracking-widest">인력 및 업무</h3>
-              <div className="space-y-8">
+          <div className="grid grid-cols-2 gap-8">
+            <section className="bg-white rounded-2xl shadow-sm border border-slate-100 p-8 space-y-8">
+              <h3 className="text-sm font-bold text-slate-800 uppercase tracking-widest flex items-center gap-2 border-b border-slate-50 pb-4">
+                <div className="w-1 h-4 bg-sleek-primary rounded-full" />
+                인력 및 업무
+              </h3>
+              <div className="space-y-10">
                 <DetailList 
                   label="담당자" 
                   items={isEditing ? editData.assignees : project.assignees} 
@@ -760,9 +766,12 @@ function ProjectDetailView({ project, isEditing, setIsEditing, onUpdate, onBack 
               </div>
             </section>
 
-            <section className="space-y-6">
-              <h3 className="text-sm font-bold text-slate-400 uppercase tracking-widest">이슈 및 첨부파일</h3>
-              <div className="space-y-8">
+            <section className="bg-white rounded-2xl shadow-sm border border-slate-100 p-8 space-y-8">
+              <h3 className="text-sm font-bold text-slate-800 uppercase tracking-widest flex items-center gap-2 border-b border-slate-50 pb-4">
+                <div className="w-1 h-4 bg-sleek-primary rounded-full" />
+                이슈 및 첨부파일
+              </h3>
+              <div className="space-y-10">
                 <DetailList 
                   label="이슈 사항" 
                   items={isEditing ? editData.issues : project.issues} 
@@ -785,9 +794,12 @@ function ProjectDetailView({ project, isEditing, setIsEditing, onUpdate, onBack 
 
           {/* Media Preview Section */}
           {(project.attachments && project.attachments.length > 0) && (
-            <section className="space-y-6 pt-4">
-              <h3 className="text-sm font-bold text-slate-400 uppercase tracking-widest">시안확인</h3>
-              <div className="grid grid-cols-3 gap-4">
+            <section className="bg-white rounded-2xl shadow-sm border border-slate-100 p-8 space-y-8">
+              <h3 className="text-sm font-bold text-slate-800 uppercase tracking-widest flex items-center gap-2 border-b border-slate-50 pb-4">
+                <div className="w-1 h-4 bg-sleek-primary rounded-full" />
+                시안확인
+              </h3>
+              <div className="grid grid-cols-3 gap-6">
                 {project.attachments.map((url, i) => (
                   <div key={i} className="group relative aspect-video bg-slate-100 rounded-xl overflow-hidden border border-slate-200">
                     {url.match(/\.(mp4|webm|ogg)$/i) || url.includes('youtube') || url.includes('vimeo') ? (
@@ -818,9 +830,14 @@ function ProjectDetailView({ project, isEditing, setIsEditing, onUpdate, onBack 
 
 function DetailItem({ label, value, isEditing, children }: { label: string, value: string | number, isEditing: boolean, children: React.ReactNode }) {
   return (
-    <div className="space-y-2">
-      <Label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">{label}</Label>
-      {isEditing ? children : <p className="text-sm font-semibold text-slate-700">{value}</p>}
+    <div className="space-y-2.5">
+      <Label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider ml-0.5">{label}</Label>
+      <div className={cn(
+        "transition-all",
+        !isEditing && "bg-slate-50/50 rounded-lg p-3 border border-slate-100/50 hover:bg-white hover:border-slate-200 hover:shadow-sm"
+      )}>
+        {isEditing ? children : <p className="text-sm font-bold text-slate-700">{value}</p>}
+      </div>
     </div>
   );
 }
@@ -1005,14 +1022,23 @@ function MiniSection({ title, count, items, variant = 'default', groupByCell = f
                 <div 
                   key={item.id} 
                   onClick={() => onClickItem(item.id)}
-                  className="flex items-center justify-between text-sm py-2 border-b border-black/5 last:border-0 cursor-pointer hover:bg-slate-50 rounded px-2 transition-colors"
+                  className="flex flex-col text-sm py-2 border-b border-black/5 last:border-0 cursor-pointer hover:bg-slate-50 rounded px-2 transition-colors"
                 >
-                  <span className="truncate pr-2 font-semibold text-slate-700">{item.name}</span>
-                  {variant !== 'danger' && (
-                    <span className={cn(
-                      "font-bold shrink-0 text-sleek-primary"
-                    )}>
-                      {item.status === 'upcoming' ? `D-${Math.floor(Math.random() * 30)}` : `${item.progress}%`}
+                  <div className="flex items-center justify-between w-full">
+                    <span className="truncate pr-2 font-semibold text-slate-700">
+                      {variant === 'danger' && item.issues.length > 0 ? item.issues[0] : item.name}
+                    </span>
+                    {variant !== 'danger' && (
+                      <span className={cn(
+                        "font-bold shrink-0 text-sleek-primary"
+                      )}>
+                        {item.status === 'upcoming' ? `D-${Math.floor(Math.random() * 30)}` : `${item.progress}%`}
+                      </span>
+                    )}
+                  </div>
+                  {variant === 'danger' && (
+                    <span className="text-[10px] text-slate-400 font-medium mt-0.5 truncate">
+                      프로젝트: {item.name}
                     </span>
                   )}
                 </div>
