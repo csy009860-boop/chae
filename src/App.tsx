@@ -79,7 +79,6 @@ export default function App() {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null);
   const [isEditing, setIsEditing] = useState(false);
-  const [filterStatus, setFilterStatus] = useState<ProjectStatus | 'all'>('all');
 
   // Firestore Listener
   useEffect(() => {
@@ -322,43 +321,31 @@ export default function App() {
                 title="전체 업무" 
                 value={stats.total} 
                 color="var(--color-sleek-primary)" 
-                active={filterStatus === 'all'}
-                onClick={() => setFilterStatus('all')}
               />
               <StatCard 
                 title="진행 프로젝트" 
                 value={stats.ongoing} 
-                color="var(--color-sleek-success)" 
-                active={filterStatus === 'ongoing'}
-                onClick={() => setFilterStatus('ongoing')}
+                color="var(--color-sleek-primary)" 
               />
               <StatCard 
                 title="예정 프로젝트" 
                 value={stats.upcoming} 
                 color="var(--color-sleek-warning)" 
-                active={filterStatus === 'upcoming'}
-                onClick={() => setFilterStatus('upcoming')}
               />
               <StatCard 
                 title="상시 프로젝트" 
                 value={stats.regular} 
-                color="var(--color-sleek-info)" 
-                active={filterStatus === 'regular'}
-                onClick={() => setFilterStatus('regular')}
+                color="var(--color-sleek-navy)" 
               />
               <StatCard 
                 title="완료 프로젝트" 
                 value={stats.completed} 
-                color="var(--color-sleek-primary)" 
-                active={filterStatus === 'completed'}
-                onClick={() => setFilterStatus('completed')}
+                color="var(--color-sleek-success)" 
               />
               <StatCard 
                 title="이슈 사항" 
                 value={stats.issue} 
                 color="var(--color-sleek-danger)" 
-                active={filterStatus === 'issue'}
-                onClick={() => setFilterStatus('issue')}
               />
             </div>
 
@@ -382,7 +369,7 @@ export default function App() {
                     count={stats.completed} 
                     items={projects.filter(p => p.status === 'completed')} 
                     onClickItem={setSelectedProjectId} 
-                    variant="default"
+                    variant="info"
                     groupByCell
                   />
                 </div>
@@ -415,7 +402,7 @@ export default function App() {
                     count={stats.regular} 
                     items={projects.filter(p => p.status === 'regular')} 
                     onClickItem={setSelectedProjectId} 
-                    variant="info"
+                    variant="default"
                     groupByCell
                   />
                 </div>
@@ -946,14 +933,10 @@ function NavItem({ icon, label, active = false, onClick }: { icon: React.ReactNo
   );
 }
 
-function StatCard({ title, value, color, active = false, onClick }: { title: string, value: number, color: string, active?: boolean, onClick?: () => void }) {
+function StatCard({ title, value, color }: { title: string, value: number, color: string }) {
   return (
     <div 
-      onClick={onClick}
-      className={cn(
-        "bg-white p-5 rounded-xl shadow-sm border-l-4 cursor-pointer transition-all hover:shadow-md hover:-translate-y-0.5",
-        active ? "ring-2 ring-sleek-primary ring-offset-2" : ""
-      )}
+      className="bg-white p-5 rounded-xl shadow-sm border-l-4 transition-all"
       style={{ borderLeftColor: color }}
     >
       <p className="text-xs font-bold text-sleek-text-sub uppercase tracking-wider mb-2">{title}</p>
@@ -982,27 +965,27 @@ function MiniSection({ title, count, items, variant = 'default', groupByCell = f
   onClickItem: (id: string) => void 
 }) {
   const variantStyles = {
-    default: "bg-white border-slate-100",
+    default: "bg-white border-slate-300 ring-2 ring-slate-100",
     primary: "bg-white border-blue-200 ring-2 ring-blue-100 shadow-blue-50",
     warning: "bg-white border-amber-200 ring-2 ring-amber-50",
-    danger: "bg-white border-red-200 ring-2 ring-red-50",
-    info: "bg-white border-slate-200 ring-2 ring-slate-50",
+    danger: "bg-white border-rose-200 ring-2 ring-rose-50",
+    info: "bg-white border-green-200 ring-2 ring-green-50",
   };
 
   const titleStyles = {
     default: "text-slate-800",
     primary: "text-blue-700",
     warning: "text-amber-700",
-    danger: "text-red-700",
-    info: "text-slate-700",
+    danger: "text-rose-700",
+    info: "text-green-700",
   };
 
   const badgeStyles = {
-    default: "bg-slate-100 text-slate-600",
+    default: "bg-slate-800 text-white",
     primary: "bg-blue-600 text-white",
     warning: "bg-amber-500 text-white",
-    danger: "bg-red-500 text-white",
-    info: "bg-slate-600 text-white",
+    danger: "bg-rose-500 text-white",
+    info: "bg-green-600 text-white",
   };
 
   const groupedItems = useMemo<[string, Project[]][]>(() => {
@@ -1152,11 +1135,11 @@ function MiniSection({ title, count, items, variant = 'default', groupByCell = f
 
 function StatusTag({ status }: { status: ProjectStatus }) {
   const styles = {
-    ongoing: "bg-green-100 text-green-700",
+    ongoing: "bg-blue-100 text-blue-700",
     upcoming: "bg-yellow-100 text-yellow-700",
-    regular: "bg-blue-100 text-blue-700",
+    regular: "bg-slate-200 text-slate-800",
     issue: "bg-rose-50 text-rose-600",
-    completed: "bg-emerald-100 text-emerald-700",
+    completed: "bg-green-100 text-green-700",
   };
   
   const label = getStatusLabel(status);
