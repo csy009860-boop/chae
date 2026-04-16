@@ -1,3 +1,4 @@
+// Force sync comment
 export type ProjectStatus = 'ongoing' | 'upcoming' | 'regular' | 'issue' | 'completed';
 
 export interface Project {

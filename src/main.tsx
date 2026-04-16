@@ -1,4 +1,5 @@
 import {StrictMode} from 'react';
+// Force sync comment
 import {createRoot} from 'react-dom/client';
 import App from './App.tsx';
 import './index.css';

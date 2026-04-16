@@ -1,5 +1,5 @@
 import { Project } from '../types';
-
+// Force sync comment
 export const mockProjects: Project[] = [
   {
     id: '1',

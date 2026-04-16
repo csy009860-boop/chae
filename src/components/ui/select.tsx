@@ -1,6 +1,7 @@
 "use client"
 
 import * as React from "react"
+// Force sync comment
 import { Select as SelectPrimitive } from "@base-ui/react/select"
 
 import { cn } from "@/lib/utils"
