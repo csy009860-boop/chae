@@ -274,9 +274,9 @@ export default function App() {
             onBack={() => setSelectedProjectId(null)}
           />
         ) : (
-          <div className="flex-1 flex flex-col p-6 gap-6 overflow-hidden">
+          <div className="flex-1 flex flex-col p-6 gap-6 overflow-y-auto">
             {/* Header Stats */}
-            <div className="grid grid-cols-6 gap-4">
+            <div className="grid grid-cols-6 gap-4 shrink-0">
               <StatCard 
                 title="전체 업무" 
                 value={stats.total} 
@@ -322,10 +322,10 @@ export default function App() {
             </div>
 
             {/* Content Grid - Redesigned Layout */}
-            <div className="flex gap-6 flex-1 min-h-0">
+            <div className="flex gap-6">
               {/* Left Side: Ongoing & Completed Projects (50%) */}
-              <div className="w-1/2 flex flex-col gap-4">
-                <div className="flex-[2] min-h-0">
+              <div className="w-1/2 flex flex-col gap-6">
+                <div>
                   <MiniSection 
                     title="진행중 프로젝트" 
                     count={stats.ongoing} 
@@ -335,7 +335,7 @@ export default function App() {
                     groupByCell
                   />
                 </div>
-                <div className="flex-1 min-h-0">
+                <div>
                   <MiniSection 
                     title="완료 업무" 
                     count={stats.completed} 
@@ -348,8 +348,8 @@ export default function App() {
               </div>
 
               {/* Right Side: Issues, Upcoming, Regular (50%) */}
-              <div className="w-1/2 flex flex-col gap-4">
-                <div className="flex-1">
+              <div className="w-1/2 flex flex-col gap-6">
+                <div>
                   <MiniSection 
                     title="이슈 사항" 
                     count={stats.issue} 
@@ -358,7 +358,7 @@ export default function App() {
                     variant="danger"
                   />
                 </div>
-                <div className="flex-1">
+                <div>
                   <MiniSection 
                     title="예정 프로젝트" 
                     count={stats.upcoming} 
@@ -368,7 +368,7 @@ export default function App() {
                     groupByCell
                   />
                 </div>
-                <div className="flex-1">
+                <div>
                   <MiniSection 
                     title="상시 업무" 
                     count={stats.regular} 
@@ -923,86 +923,126 @@ function MiniSection({ title, count, items, variant = 'default', groupByCell = f
     info: "bg-slate-600 text-white",
   };
 
-  const groupedItems = useMemo<Record<string, Project[]>>(() => {
-    if (!groupByCell) return { '전체': items };
+  const groupedItems = useMemo<[string, Project[]][]>(() => {
+    if (!groupByCell) return [['전체', items]];
     const groups: Record<string, Project[]> = {};
     items.forEach(item => {
       const cell = item.taskCell || '기타';
       if (!groups[cell]) groups[cell] = [];
       groups[cell].push(item);
     });
-    return groups;
+
+    // Sort groups by specific order: 공통 > 영상셀 > UX셀 > 편집셀
+    const order = ['공통', '영상셀', 'UX셀', '편집셀'];
+    const sortedEntries = Object.entries(groups).sort(([a], [b]) => {
+      const indexA = order.indexOf(a);
+      const indexB = order.indexOf(b);
+      if (indexA !== -1 && indexB !== -1) return indexA - indexB;
+      if (indexA !== -1) return -1;
+      if (indexB !== -1) return 1;
+      return a.localeCompare(b);
+    });
+
+    return sortedEntries;
   }, [items, groupByCell]);
 
   return (
     <div className={cn(
-      "p-6 rounded-xl shadow-sm flex flex-col border transition-all h-full",
+      "p-4 rounded-xl shadow-sm flex flex-col border transition-all min-h-[250px]",
       variantStyles[variant],
       variant === 'primary' && "shadow-md z-10"
     )}>
-      <div className="flex items-center justify-between mb-4 shrink-0">
+      <div className="flex items-center justify-between mb-2 shrink-0">
         <h4 className={cn("text-sm font-bold uppercase tracking-tight", titleStyles[variant])}>{title}</h4>
         <Badge className={cn("text-xs px-2.5 h-6 font-bold", badgeStyles[variant])}>
           {count}
         </Badge>
       </div>
-      <ScrollArea className="flex-1 -mx-2 px-2">
-        <div className="space-y-4">
-          {(Object.entries(groupedItems) as [string, Project[]][]).map(([cell, cellItems]) => (
-            <div key={cell} className="space-y-1.5">
+      <div className="flex-1 -mx-2 px-2">
+        <div className="space-y-1">
+          {groupedItems.map(([cell, cellItems], groupIndex, groupArray) => (
+            <div key={cell} className="space-y-0">
               {groupByCell && (
-                <div className="flex items-center gap-2 mb-1">
+                <div className="flex items-center gap-2 py-1 mt-1">
                   <div className="h-px flex-1 bg-slate-100"></div>
-                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{cell}</span>
+                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest px-2">{cell}</span>
                   <div className="h-px flex-1 bg-slate-100"></div>
                 </div>
               )}
-              {cellItems.map(item => (
+              {cellItems.map((item, itemIndex) => (
                 <div 
                   key={item.id} 
                   onClick={() => onClickItem(item.id)}
-                  className="flex items-center justify-between text-sm py-3 border-b border-black/5 last:border-0 cursor-pointer hover:bg-slate-50 rounded px-2 transition-colors"
+                  className={cn(
+                    "flex flex-col gap-1 text-sm py-2 border-b border-slate-100 cursor-pointer hover:bg-slate-50/50 rounded-sm px-2 transition-colors",
+                    itemIndex === cellItems.length - 1 && "border-b-0"
+                  )}
                 >
-                  <div className="flex items-center gap-3 flex-1 min-w-0">
-                    <span className="truncate font-semibold text-slate-700">
-                      {variant === 'danger' && item.issues.length > 0 ? item.issues[0] : item.name}
-                    </span>
-                    {variant === 'primary' && item.issues.length > 0 && (
-                      <div className="flex items-center gap-1 shrink-0">
-                        <span className="text-[11px] font-bold text-red-600">이슈</span>
-                        <div className="w-5 h-5 rounded-full bg-red-100 flex items-center justify-center text-[10px] text-red-600 font-bold">
-                          {item.issues.length}
-                        </div>
-                      </div>
-                    )}
-                    {variant === 'danger' && (
-                      <span className="text-[10px] text-slate-400 font-medium truncate">
-                        프로젝트: {item.name}
+                  {/* Row 1: Project Name & Progress */}
+                  <div className="flex items-center justify-between w-full">
+                    <div className="flex items-center gap-3 flex-1 min-w-0">
+                      <span className={cn(
+                        "truncate font-bold text-slate-800",
+                        variant === 'primary' ? "text-lg" : "text-sm"
+                      )}>
+                        {variant === 'danger' && item.issues.length > 0 ? item.issues[0] : item.name}
                       </span>
-                    )}
-                  </div>
-
-                  <div className="flex items-center gap-6 shrink-0 ml-4">
-                    {variant === 'primary' && (
-                      <div className="flex items-center gap-2">
-                        <div className="w-7 h-7 rounded-full bg-sleek-primary flex items-center justify-center text-[9px] text-white font-bold shrink-0">
-                          {item.pm[0]}
+                      {item.issues.length > 0 && variant !== 'danger' && (
+                        <div className="flex items-center gap-1 shrink-0">
+                          <span className="text-[11px] font-bold text-red-600">이슈</span>
+                          <div className="w-5 h-5 rounded-full bg-red-100 flex items-center justify-center text-[10px] text-red-600 font-bold">
+                            {item.issues.length}
+                          </div>
                         </div>
-                        <span className="text-[12px] text-slate-600 font-medium whitespace-nowrap">{item.pm}</span>
-                      </div>
-                    )}
-
+                      )}
+                    </div>
                     {variant !== 'danger' && (
-                      <div className="flex items-center gap-2 min-w-[70px] justify-end">
+                      <div className="flex items-center gap-2 shrink-0">
                         {variant !== 'warning' && (
                           <span className="text-[11px] font-medium text-sleek-primary/60">진행율</span>
                         )}
-                        <span className="font-bold text-sleek-primary text-sm">
+                        <span className="font-bold text-sleek-primary text-base">
                           {item.status === 'upcoming' ? `D-${Math.floor(Math.random() * 30)}` : `${item.progress}%`}
                         </span>
                       </div>
                     )}
                   </div>
+
+                  {/* Row 2: Status, Cell, PM, Assignees, Deadline (Only for Ongoing Projects) */}
+                  {variant === 'primary' && (
+                    <div className="flex items-center justify-between w-full">
+                      <div className="flex items-center gap-4 flex-wrap">
+                        <StatusTag status={item.status} />
+                        <Badge variant="outline" className="text-[10px] font-bold border-slate-200 text-slate-500 h-6 px-2">
+                          {item.taskCell}
+                        </Badge>
+                        
+                        <div className="flex items-center gap-2">
+                          <span className="text-[11px] font-bold text-slate-400">PM</span>
+                          <span className="text-[12px] text-slate-700 font-bold">{item.pm}</span>
+                        </div>
+
+                        <div className="flex items-center gap-2">
+                          <span className="text-[11px] font-bold text-slate-400">담당자</span>
+                          <span className="text-[12px] text-slate-700 font-bold truncate max-w-[150px]">
+                            {item.assignees.join(', ')}
+                          </span>
+                        </div>
+                      </div>
+
+                      {item.deadline && (
+                        <div className="text-[11px] font-bold text-slate-700 shrink-0">
+                          마감일 - {item.deadline}
+                        </div>
+                      )}
+                    </div>
+                  )}
+                  
+                  {variant === 'danger' && (
+                    <span className="text-[10px] text-slate-400 font-medium truncate block">
+                      프로젝트: {item.name}
+                    </span>
+                  )}
                 </div>
               ))}
             </div>
@@ -1013,7 +1053,7 @@ function MiniSection({ title, count, items, variant = 'default', groupByCell = f
             </div>
           )}
         </div>
-      </ScrollArea>
+      </div>
     </div>
   );
 }
