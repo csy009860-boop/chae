@@ -22,12 +22,34 @@
         "createdAt": { "type": "string", "format": "date-time", "description": "Creation timestamp" }
       },
       "required": ["name", "status", "uid", "createdAt"]
+    },
+    "TeamSchedule": {
+      "title": "TeamSchedule",
+      "description": "A team member's schedule entry (vacation, meeting, etc.)",
+      "type": "object",
+      "properties": {
+        "type": { "type": "string", "enum": ["vacation", "meeting", "seminar", "interview"], "description": "Type of schedule" },
+        "subType": { "type": "string", "enum": ["annual", "half", "time"], "description": "Vacation subtype" },
+        "title": { "type": "string", "description": "Schedule title" },
+        "startDate": { "type": "string", "format": "date", "description": "Start date" },
+        "endDate": { "type": "string", "format": "date", "description": "End date" },
+        "time": { "type": "string", "description": "Time for time-off" },
+        "participants": { "type": "array", "items": { "type": "string" }, "description": "List of participants" },
+        "cell": { "type": "string", "description": "Team member's cell" },
+        "uid": { "type": "string", "description": "Owner user ID" },
+        "createdAt": { "type": "string", "format": "date-time", "description": "Creation timestamp" }
+      },
+      "required": ["type", "title", "startDate", "endDate", "cell", "uid", "createdAt"]
     }
   },
   "firestore": {
     "/projects/{projectId}": {
       "schema": "Project",
       "description": "Collection of projects"
+    },
+    "/teamSchedules/{scheduleId}": {
+      "schema": "TeamSchedule",
+      "description": "Collection of team member schedules"
     }
   }
 }

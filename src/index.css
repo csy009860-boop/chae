@@ -22,6 +22,11 @@
   --color-sleek-warning: #f59e0b;
   --color-sleek-danger: #ef4444;
   --color-sleek-navy: #1e293b;
+  
+  --color-cell-common: #6366f1;
+  --color-cell-ux: #ec4899;
+  --color-cell-video: #8b5cf6;
+  --color-cell-edit: #06b6d4;
 }
 
 @layer base {

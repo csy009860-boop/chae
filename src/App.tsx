@@ -3,7 +3,7 @@ import React, { useState, useMemo, useEffect } from 'react';
 import { 
   LayoutDashboard, 
   Briefcase, 
-  Calendar, 
+  Calendar as CalendarIcon, 
   AlertCircle, 
   Plus, 
   Trash2, 
@@ -72,6 +72,7 @@ import {
   where, 
   orderBy 
 } from 'firebase/firestore';
+import CalendarView from './components/CalendarView';
 
 export default function App() {
   const [projects, setProjects] = useState<Project[]>([]);
@@ -79,6 +80,7 @@ export default function App() {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null);
   const [isEditing, setIsEditing] = useState(false);
+  const [currentView, setCurrentView] = useState<'dashboard' | 'calendar'>('dashboard');
 
   // Firestore Listener
   useEffect(() => {
@@ -260,8 +262,14 @@ export default function App() {
           <NavItem 
             icon={<LayoutDashboard size={18} />} 
             label="대시보드" 
-            active={!selectedProjectId} 
-            onClick={() => { setSelectedProjectId(null); setIsEditing(false); }}
+            active={currentView === 'dashboard' && !selectedProjectId} 
+            onClick={() => { setCurrentView('dashboard'); setSelectedProjectId(null); setIsEditing(false); }}
+          />
+          <NavItem 
+            icon={<CalendarIcon size={18} />} 
+            label="캘린더" 
+            active={currentView === 'calendar'} 
+            onClick={() => { setCurrentView('calendar'); setSelectedProjectId(null); setIsEditing(false); }}
           />
           <div className="pt-4 pb-2 px-4 text-[10px] font-bold text-slate-500 uppercase tracking-widest">Project List</div>
           {filteredProjects.map(p => (
@@ -312,6 +320,16 @@ export default function App() {
             setIsEditing={setIsEditing}
             onUpdate={handleUpdateProject}
             onBack={() => setSelectedProjectId(null)}
+          />
+        ) : currentView === 'calendar' ? (
+          <CalendarView 
+            projects={projects} 
+            onSelectProject={(id) => {
+              setSelectedProjectId(id);
+              setCurrentView('dashboard');
+              setIsEditing(false);
+            }}
+            onDeleteProject={handleDeleteProject}
           />
         ) : (
           <div className="flex-1 flex flex-col p-6 gap-6 overflow-y-auto">
@@ -690,25 +708,35 @@ function ProjectDetailView({ project, isEditing, setIsEditing, onUpdate, onBack 
                 </Select>
               </DetailItem>
               <DetailItem label="작업 셀" value={project.taskCell.join(', ')} isEditing={isEditing}>
-                <div className="flex flex-wrap gap-3 p-2 bg-slate-50 rounded border border-slate-100">
-                  {['UX셀', '영상셀', '편집셀'].map(cell => (
-                    <div key={cell} className="flex items-center space-x-2">
-                      <Checkbox 
-                        id={`edit-cell-${cell}`}
-                        checked={editData.taskCell.includes(cell)}
-                        onCheckedChange={(checked) => {
-                          const current = editData.taskCell;
-                          if (checked) {
-                            setEditData({...editData, taskCell: [...current, cell]});
-                          } else {
-                            setEditData({...editData, taskCell: current.filter(c => c !== cell)});
-                          }
-                        }}
-                      />
-                      <Label htmlFor={`edit-cell-${cell}`} className="text-xs font-medium cursor-pointer">{cell}</Label>
-                    </div>
-                  ))}
-                </div>
+                {isEditing ? (
+                  <div className="flex flex-wrap gap-3 p-2 bg-slate-50 rounded border border-slate-100">
+                    {['UX셀', '영상셀', '편집셀'].map(cell => (
+                      <div key={cell} className="flex items-center space-x-2">
+                        <Checkbox 
+                          id={`edit-cell-${cell}`}
+                          checked={editData.taskCell.includes(cell)}
+                          onCheckedChange={(checked) => {
+                            const current = editData.taskCell;
+                            if (checked) {
+                              setEditData({...editData, taskCell: [...current, cell]});
+                            } else {
+                              setEditData({...editData, taskCell: current.filter(c => c !== cell)});
+                            }
+                          }}
+                        />
+                        <Label htmlFor={`edit-cell-${cell}`} className="text-xs font-medium cursor-pointer">{cell}</Label>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="flex flex-wrap gap-2">
+                    {project.taskCell.length >= 2 ? (
+                      <CellBadge taskCell={project.taskCell} />
+                    ) : (
+                      project.taskCell.map(cell => <CellBadge key={cell} taskCell={[cell]} />)
+                    )}
+                  </div>
+                )}
               </DetailItem>
               <DetailItem label="협업팀" value={project.collabTeam || '-'} isEditing={isEditing}>
                 <Input value={editData.collabTeam || ''} onChange={e => setEditData({...editData, collabTeam: e.target.value})} className="h-9" />
@@ -1080,9 +1108,7 @@ function MiniSection({ title, count, items, variant = 'default', groupByCell = f
                     <div className="flex items-center justify-between w-full">
                       <div className="flex items-center gap-4 flex-wrap">
                         <StatusTag status={item.status} />
-                        <Badge variant="outline" className="text-[10px] font-bold border-slate-200 text-slate-500 h-6 px-2">
-                          {item.taskCell.join(', ')}
-                        </Badge>
+                        <CellBadge taskCell={item.taskCell} />
                         
                         <div className="flex items-center gap-2">
                           <span className="text-[11px] font-bold text-slate-400">PM</span>
@@ -1130,6 +1156,34 @@ function MiniSection({ title, count, items, variant = 'default', groupByCell = f
         </div>
       </div>
     </div>
+  );
+}
+
+function getCellColor(taskCell: string[]) {
+  if (taskCell.length >= 2) return 'var(--color-cell-common)';
+  const cell = taskCell[0];
+  if (cell === 'UX셀') return 'var(--color-cell-ux)';
+  if (cell === '영상셀') return 'var(--color-cell-video)';
+  if (cell === '편집셀') return 'var(--color-cell-edit)';
+  return 'var(--color-sleek-primary)';
+}
+
+function CellBadge({ taskCell, label: manualLabel }: { taskCell: string[], label?: string }) {
+  const isCommon = taskCell.length >= 2;
+  const label = manualLabel || (isCommon ? '공통' : (taskCell[0] || '기타'));
+  
+  const styles: Record<string, string> = {
+    '공통': "bg-indigo-50 text-indigo-600 border-indigo-200",
+    'UX셀': "bg-pink-50 text-pink-600 border-pink-200",
+    '영상셀': "bg-purple-50 text-purple-600 border-purple-200",
+    '편집셀': "bg-cyan-50 text-cyan-600 border-cyan-200",
+    '기타': "bg-slate-50 text-slate-600 border-slate-200",
+  };
+
+  return (
+    <Badge variant="outline" className={cn("text-[10px] font-bold h-6 px-2", styles[label] || styles['기타'])}>
+      {manualLabel || taskCell.join(', ')}
+    </Badge>
   );
 }
 

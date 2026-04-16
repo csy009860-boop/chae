@@ -28,3 +28,20 @@ export interface DashboardStats {
   regularCount: number;
   issueCount: number;
 }
+
+export type ScheduleType = 'vacation' | 'meeting' | 'seminar' | 'interview';
+export type VacationType = 'annual' | 'half' | 'time';
+
+export interface TeamSchedule {
+  id: string;
+  type: ScheduleType;
+  subType?: VacationType;
+  title: string;
+  startDate: string;
+  endDate: string;
+  time?: string;
+  participants: string[];
+  cell: string;
+  uid: string;
+  createdAt: string;
+}

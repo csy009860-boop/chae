@@ -37,10 +37,29 @@ service cloud.firestore {
              (!('attachments' in data) || data.attachments is list);
     }
 
+    function isValidTeamSchedule(data) {
+      return data.type in ['vacation', 'meeting', 'seminar', 'interview'] &&
+             data.title is string && data.title.size() > 0 && data.title.size() < 200 &&
+             data.startDate is string &&
+             data.endDate is string &&
+             data.cell is string &&
+             data.uid is string &&
+             data.createdAt is string &&
+             (!('subType' in data) || data.subType in ['annual', 'half', 'time']) &&
+             (!('participants' in data) || data.participants is list);
+    }
+
     match /projects/{projectId} {
       allow read: if true;
       allow create: if isValidProject(request.resource.data);
       allow update: if isValidProject(request.resource.data);
+      allow delete: if true;
+    }
+
+    match /teamSchedules/{scheduleId} {
+      allow read: if true;
+      allow create: if isValidTeamSchedule(request.resource.data);
+      allow update: if isValidTeamSchedule(request.resource.data);
       allow delete: if true;
     }
   }
