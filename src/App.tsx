@@ -89,10 +89,24 @@ export default function App() {
     );
 
     const unsubscribe = onSnapshot(q, (snapshot) => {
-      const projectsData = snapshot.docs.map(doc => ({
-        ...doc.data(),
-        id: doc.id
-      })) as Project[];
+      const projectsData = snapshot.docs.map(doc => {
+        const data = doc.data();
+        // Data migration: if taskCell is '공통', convert to all 3 cells. If string, convert to array.
+        let taskCell = data.taskCell;
+        if (taskCell === '공통') {
+          taskCell = ['UX셀', '영상셀', '편집셀'];
+        } else if (typeof taskCell === 'string') {
+          taskCell = taskCell ? [taskCell] : [];
+        } else if (!Array.isArray(taskCell)) {
+          taskCell = [];
+        }
+
+        return {
+          ...data,
+          id: doc.id,
+          taskCell
+        } as Project;
+      });
       setProjects(projectsData);
     }, (error) => {
       handleFirestoreError(error, OperationType.LIST, 'projects');
@@ -105,7 +119,9 @@ export default function App() {
   const [newProject, setNewProject] = useState<Partial<Project>>({
     name: '',
     status: 'ongoing',
-    taskCell: '',
+    taskCell: [],
+    collabTeam: '',
+    collabManager: '',
     deadline: '',
     startDate: format(new Date(), 'yyyy-MM-dd'),
     endDate: format(new Date(), 'yyyy-MM-dd'),
@@ -131,10 +147,27 @@ export default function App() {
     completed: projects.filter(p => p.status === 'completed').length,
   }), [projects]);
 
-  const filteredProjects = projects.filter(p => 
-    p.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    p.pm.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const filteredProjects = useMemo(() => {
+    const filtered = projects.filter(p => 
+      p.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      p.pm.toLowerCase().includes(searchTerm.toLowerCase())
+    );
+
+    // Sort order: 진행중(ongoing) > 완료(completed) > 예정(upcoming) > 상시(regular)
+    const statusOrder: Record<string, number> = {
+      ongoing: 0,
+      completed: 1,
+      upcoming: 2,
+      regular: 3
+    };
+
+    return filtered.sort((a, b) => {
+      const orderA = statusOrder[a.status] ?? 99;
+      const orderB = statusOrder[b.status] ?? 99;
+      if (orderA !== orderB) return orderA - orderB;
+      return a.name.localeCompare(b.name);
+    });
+  }, [projects, searchTerm]);
 
   const handleAddProject = async () => {
     try {
@@ -149,7 +182,9 @@ export default function App() {
       setNewProject({
         name: '',
         status: 'ongoing',
-        taskCell: '',
+        taskCell: [],
+        collabTeam: '',
+        collabManager: '',
         deadline: '',
         startDate: format(new Date(), 'yyyy-MM-dd'),
         endDate: format(new Date(), 'yyyy-MM-dd'),
@@ -205,7 +240,7 @@ export default function App() {
   return (
     <div className="flex h-screen bg-sleek-bg text-sleek-text-main">
       {/* Sidebar */}
-      <aside className="w-60 bg-sleek-sidebar text-white flex flex-col shrink-0">
+      <aside className="w-80 bg-sleek-sidebar text-white flex flex-col shrink-0">
         <div className="p-6 pb-8">
           <span className="font-extrabold text-xl tracking-widest text-sleek-primary">DASHBOARD</span>
         </div>
@@ -235,14 +270,20 @@ export default function App() {
               key={p.id} 
               onClick={() => { setSelectedProjectId(p.id); setIsEditing(false); }}
               className={cn(
-                "group flex items-center justify-between px-4 py-2.5 text-sm cursor-pointer rounded-md transition-all",
+                "group flex items-center gap-3 px-4 py-2.5 text-sm cursor-pointer rounded-md transition-all",
                 selectedProjectId === p.id ? "bg-slate-800 text-white font-bold border-r-4 border-sleek-primary rounded-r-none" : "text-slate-400 hover:bg-slate-800 hover:text-slate-200"
               )}
             >
-              <span className="truncate">{p.name}</span>
+              <StatusTag status={p.status} />
+              <span className="truncate flex-1">{p.name}</span>
+              {p.issues.length > 0 && (
+                <div className="w-5 h-5 rounded-full bg-rose-100 flex items-center justify-center text-[10px] text-rose-600 font-bold shrink-0">
+                  {p.issues.length}
+                </div>
+              )}
               <button 
                 onClick={(e) => { e.stopPropagation(); handleDeleteProject(p.id); }}
-                className="opacity-0 group-hover:opacity-100 text-slate-500 hover:text-red-400 transition-opacity"
+                className="opacity-0 group-hover:opacity-100 text-slate-500 hover:text-red-400 transition-opacity ml-1"
               >
                 <Trash2 size={14} />
               </button>
@@ -299,14 +340,14 @@ export default function App() {
                 onClick={() => setFilterStatus('upcoming')}
               />
               <StatCard 
-                title="상시 업무" 
+                title="상시 프로젝트" 
                 value={stats.regular} 
                 color="var(--color-sleek-info)" 
                 active={filterStatus === 'regular'}
                 onClick={() => setFilterStatus('regular')}
               />
               <StatCard 
-                title="완료 업무" 
+                title="완료 프로젝트" 
                 value={stats.completed} 
                 color="var(--color-sleek-primary)" 
                 active={filterStatus === 'completed'}
@@ -337,7 +378,7 @@ export default function App() {
                 </div>
                 <div>
                   <MiniSection 
-                    title="완료 업무" 
+                    title="완료 프로젝트" 
                     count={stats.completed} 
                     items={projects.filter(p => p.status === 'completed')} 
                     onClickItem={setSelectedProjectId} 
@@ -370,7 +411,7 @@ export default function App() {
                 </div>
                 <div>
                   <MiniSection 
-                    title="상시 업무" 
+                    title="상시 프로젝트" 
                     count={stats.regular} 
                     items={projects.filter(p => p.status === 'regular')} 
                     onClickItem={setSelectedProjectId} 
@@ -423,21 +464,44 @@ export default function App() {
                   </Select>
                 </div>
                 <div className="space-y-2">
-                  <Label className="text-xs font-bold text-slate-500 uppercase">작업 셀</Label>
-                  <Select 
-                    value={newProject.taskCell} 
-                    onValueChange={v => setNewProject({...newProject, taskCell: v})}
-                  >
-                    <SelectTrigger className="h-11 border-slate-200">
-                      <SelectValue placeholder="셀 선택" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="UX셀">UX셀</SelectItem>
-                      <SelectItem value="영상셀">영상셀</SelectItem>
-                      <SelectItem value="편집셀">편집셀</SelectItem>
-                      <SelectItem value="공통">공통</SelectItem>
-                    </SelectContent>
-                  </Select>
+                  <Label className="text-xs font-bold text-slate-500 uppercase">작업 셀 (중복 선택 가능)</Label>
+                  <div className="flex flex-wrap gap-4 p-3 bg-slate-50 rounded-lg border border-slate-200">
+                    {['UX셀', '영상셀', '편집셀'].map(cell => (
+                      <div key={cell} className="flex items-center space-x-2">
+                        <Checkbox 
+                          id={`cell-${cell}`}
+                          checked={(newProject.taskCell || []).includes(cell)}
+                          onCheckedChange={(checked) => {
+                            const current = newProject.taskCell || [];
+                            if (checked) {
+                              setNewProject({...newProject, taskCell: [...current, cell]});
+                            } else {
+                              setNewProject({...newProject, taskCell: current.filter(c => c !== cell)});
+                            }
+                          }}
+                        />
+                        <Label htmlFor={`cell-${cell}`} className="text-sm font-medium cursor-pointer">{cell}</Label>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <Label className="text-xs font-bold text-slate-500 uppercase">협업팀</Label>
+                  <Input 
+                    value={newProject.collabTeam} 
+                    onChange={e => setNewProject({...newProject, collabTeam: e.target.value})}
+                    placeholder="협업 부서/팀명"
+                    className="h-11 border-slate-200"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label className="text-xs font-bold text-slate-500 uppercase">협업 담당자</Label>
+                  <Input 
+                    value={newProject.collabManager} 
+                    onChange={e => setNewProject({...newProject, collabManager: e.target.value})}
+                    placeholder="협업 담당자 성함"
+                    className="h-11 border-slate-200"
+                  />
                 </div>
                 <div className="space-y-2">
                   <Label className="text-xs font-bold text-slate-500 uppercase">PM (책임자)</Label>
@@ -587,7 +651,9 @@ function ProjectDetailView({ project, isEditing, setIsEditing, onUpdate, onBack 
           </Button>
           <div>
             <h2 className="text-lg font-bold text-slate-800">{project.name}</h2>
-            <p className="text-xs text-slate-400">ID: {project.id} • {project.taskCell}</p>
+            <p className="text-xs text-slate-400">
+              ID: {project.id} • {project.taskCell.join(', ')}
+            </p>
           </div>
         </div>
         <div className="flex items-center gap-2">
@@ -636,16 +702,32 @@ function ProjectDetailView({ project, isEditing, setIsEditing, onUpdate, onBack 
                   </SelectContent>
                 </Select>
               </DetailItem>
-              <DetailItem label="작업 셀" value={project.taskCell} isEditing={isEditing}>
-                <Select value={editData.taskCell} onValueChange={v => setEditData({...editData, taskCell: v})}>
-                  <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="UX셀">UX셀</SelectItem>
-                    <SelectItem value="영상셀">영상셀</SelectItem>
-                    <SelectItem value="편집셀">편집셀</SelectItem>
-                    <SelectItem value="공통">공통</SelectItem>
-                  </SelectContent>
-                </Select>
+              <DetailItem label="작업 셀" value={project.taskCell.join(', ')} isEditing={isEditing}>
+                <div className="flex flex-wrap gap-3 p-2 bg-slate-50 rounded border border-slate-100">
+                  {['UX셀', '영상셀', '편집셀'].map(cell => (
+                    <div key={cell} className="flex items-center space-x-2">
+                      <Checkbox 
+                        id={`edit-cell-${cell}`}
+                        checked={editData.taskCell.includes(cell)}
+                        onCheckedChange={(checked) => {
+                          const current = editData.taskCell;
+                          if (checked) {
+                            setEditData({...editData, taskCell: [...current, cell]});
+                          } else {
+                            setEditData({...editData, taskCell: current.filter(c => c !== cell)});
+                          }
+                        }}
+                      />
+                      <Label htmlFor={`edit-cell-${cell}`} className="text-xs font-medium cursor-pointer">{cell}</Label>
+                    </div>
+                  ))}
+                </div>
+              </DetailItem>
+              <DetailItem label="협업팀" value={project.collabTeam || '-'} isEditing={isEditing}>
+                <Input value={editData.collabTeam || ''} onChange={e => setEditData({...editData, collabTeam: e.target.value})} className="h-9" />
+              </DetailItem>
+              <DetailItem label="협업 담당자" value={project.collabManager || '-'} isEditing={isEditing}>
+                <Input value={editData.collabManager || ''} onChange={e => setEditData({...editData, collabManager: e.target.value})} className="h-9" />
               </DetailItem>
               <DetailItem label="PM" value={project.pm} isEditing={isEditing}>
                 <Input value={editData.pm} onChange={e => setEditData({...editData, pm: e.target.value})} className="h-9" />
@@ -924,12 +1006,14 @@ function MiniSection({ title, count, items, variant = 'default', groupByCell = f
   };
 
   const groupedItems = useMemo<[string, Project[]][]>(() => {
-    if (!groupByCell) return [['전체', items]];
     const groups: Record<string, Project[]> = {};
+    
     items.forEach(item => {
-      const cell = item.taskCell || '기타';
-      if (!groups[cell]) groups[cell] = [];
-      groups[cell].push(item);
+      // Logic: If taskCell has 2 or more items, group under '공통'. Otherwise group under the specific cell.
+      const cellLabel = item.taskCell.length >= 2 ? '공통' : (item.taskCell[0] || '기타');
+      
+      if (!groups[cellLabel]) groups[cellLabel] = [];
+      groups[cellLabel].push(item);
     });
 
     // Sort groups by specific order: 공통 > 영상셀 > UX셀 > 편집셀
@@ -952,7 +1036,7 @@ function MiniSection({ title, count, items, variant = 'default', groupByCell = f
       variantStyles[variant],
       variant === 'primary' && "shadow-md z-10"
     )}>
-      <div className="flex items-center justify-between mb-2 shrink-0">
+      <div className="flex items-center gap-2 mb-2 shrink-0">
         <h4 className={cn("text-sm font-bold uppercase tracking-tight", titleStyles[variant])}>{title}</h4>
         <Badge className={cn("text-xs px-2.5 h-6 font-bold", badgeStyles[variant])}>
           {count}
@@ -989,8 +1073,8 @@ function MiniSection({ title, count, items, variant = 'default', groupByCell = f
                       </span>
                       {item.issues.length > 0 && variant !== 'danger' && (
                         <div className="flex items-center gap-1 shrink-0">
-                          <span className="text-[11px] font-bold text-red-600">이슈</span>
-                          <div className="w-5 h-5 rounded-full bg-red-100 flex items-center justify-center text-[10px] text-red-600 font-bold">
+                          <span className="text-[11px] font-bold text-rose-500">이슈</span>
+                          <div className="w-5 h-5 rounded-full bg-rose-50 flex items-center justify-center text-[10px] text-rose-500 font-bold">
                             {item.issues.length}
                           </div>
                         </div>
@@ -1014,7 +1098,7 @@ function MiniSection({ title, count, items, variant = 'default', groupByCell = f
                       <div className="flex items-center gap-4 flex-wrap">
                         <StatusTag status={item.status} />
                         <Badge variant="outline" className="text-[10px] font-bold border-slate-200 text-slate-500 h-6 px-2">
-                          {item.taskCell}
+                          {item.taskCell.join(', ')}
                         </Badge>
                         
                         <div className="flex items-center gap-2">
@@ -1063,7 +1147,7 @@ function StatusTag({ status }: { status: ProjectStatus }) {
     ongoing: "bg-green-100 text-green-700",
     upcoming: "bg-yellow-100 text-yellow-700",
     regular: "bg-blue-100 text-blue-700",
-    issue: "bg-red-100 text-red-700",
+    issue: "bg-rose-50 text-rose-600",
     completed: "bg-emerald-100 text-emerald-700",
   };
   

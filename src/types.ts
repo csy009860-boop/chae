@@ -5,7 +5,9 @@ export interface Project {
   id: string;
   name: string;
   status: ProjectStatus;
-  taskCell: string;
+  taskCell: string[];
+  collabTeam?: string;
+  collabManager?: string;
   deadline: string;
   startDate: string;
   endDate: string;
