@@ -126,7 +126,8 @@ export default function App() {
     total: projects.length,
     ongoing: projects.filter(p => p.status === 'ongoing').length,
     upcoming: projects.filter(p => p.status === 'upcoming').length,
-    issue: projects.filter(p => p.status === 'issue').length,
+    regular: projects.filter(p => p.status === 'regular').length,
+    issue: projects.filter(p => p.issues.length > 0).length,
     completed: projects.filter(p => p.status === 'completed').length,
   }), [projects]);
 
@@ -273,9 +274,9 @@ export default function App() {
             onBack={() => setSelectedProjectId(null)}
           />
         ) : (
-          <div className="flex-1 flex flex-col p-6 gap-6 overflow-y-auto">
+          <div className="flex-1 flex flex-col p-6 gap-6 overflow-hidden">
             {/* Header Stats */}
-            <div className="grid grid-cols-5 gap-4">
+            <div className="grid grid-cols-6 gap-4">
               <StatCard 
                 title="전체 업무" 
                 value={stats.total} 
@@ -284,18 +285,25 @@ export default function App() {
                 onClick={() => setFilterStatus('all')}
               />
               <StatCard 
-                title="진행 중" 
+                title="진행 프로젝트" 
                 value={stats.ongoing} 
                 color="var(--color-sleek-success)" 
                 active={filterStatus === 'ongoing'}
                 onClick={() => setFilterStatus('ongoing')}
               />
               <StatCard 
-                title="예정 업무" 
+                title="예정 프로젝트" 
                 value={stats.upcoming} 
                 color="var(--color-sleek-warning)" 
                 active={filterStatus === 'upcoming'}
                 onClick={() => setFilterStatus('upcoming')}
+              />
+              <StatCard 
+                title="상시 업무" 
+                value={stats.regular} 
+                color="var(--color-sleek-info)" 
+                active={filterStatus === 'regular'}
+                onClick={() => setFilterStatus('regular')}
               />
               <StatCard 
                 title="완료 업무" 
@@ -313,135 +321,63 @@ export default function App() {
               />
             </div>
 
-            {/* Content Grid */}
-            <div className="grid grid-cols-4 gap-4">
-              <MiniSection 
-                title="진행중 프로젝트" 
-                count={stats.ongoing} 
-                items={projects.filter(p => p.status === 'ongoing')} 
-                onClickItem={setSelectedProjectId} 
-                variant="primary"
-                groupByCell
-              />
-              <MiniSection 
-                title="예정 프로젝트" 
-                count={stats.upcoming} 
-                items={projects.filter(p => p.status === 'upcoming')} 
-                onClickItem={setSelectedProjectId} 
-                variant="warning"
-                groupByCell
-              />
-              <MiniSection 
-                title="상시 업무" 
-                count={projects.filter(p => p.status === 'regular').length} 
-                items={projects.filter(p => p.status === 'regular')} 
-                onClickItem={setSelectedProjectId} 
-                variant="info"
-                groupByCell
-              />
-              <MiniSection 
-                title="이슈 사항" 
-                count={projects.filter(p => p.issues.length > 0).length} 
-                items={projects.filter(p => p.issues.length > 0).slice(0, 4)} 
-                onClickItem={setSelectedProjectId} 
-                variant="danger"
-              />
-            </div>
-
-            {/* Details Table Area */}
-            <div className="bg-white rounded-xl shadow-sm border border-sleek-border p-6 flex flex-col">
-              <div className="flex items-center justify-between mb-6">
-                <h3 className="font-bold text-base">전체 프로젝트 리스트</h3>
-                <div className="flex items-center gap-4">
-                  {filterStatus !== 'all' && (
-                    <Badge variant="outline" className="h-8 gap-2 pl-3 pr-1 bg-blue-50 text-blue-700 border-blue-200">
-                      필터: {filterStatus === 'ongoing' ? '진행중' : filterStatus === 'upcoming' ? '예정' : filterStatus === 'issue' ? '이슈' : '완료'}
-                      <Button variant="ghost" size="icon" className="h-6 w-6 p-0 hover:bg-blue-100" onClick={() => setFilterStatus('all')}>
-                        <X size={12} />
-                      </Button>
-                    </Badge>
-                  )}
-                  <div className="relative w-64">
-                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
-                    <Input 
-                      placeholder="검색..." 
-                      className="h-10 pl-10 text-sm bg-slate-50 border-none"
-                      value={searchTerm}
-                      onChange={(e) => setSearchTerm(e.target.value)}
-                    />
-                  </div>
+            {/* Content Grid - Redesigned Layout */}
+            <div className="flex gap-6 flex-1 min-h-0">
+              {/* Left Side: Ongoing & Completed Projects (50%) */}
+              <div className="w-1/2 flex flex-col gap-4">
+                <div className="flex-[2] min-h-0">
+                  <MiniSection 
+                    title="진행중 프로젝트" 
+                    count={stats.ongoing} 
+                    items={projects.filter(p => p.status === 'ongoing')} 
+                    onClickItem={setSelectedProjectId} 
+                    variant="primary"
+                    groupByCell
+                  />
+                </div>
+                <div className="flex-1 min-h-0">
+                  <MiniSection 
+                    title="완료 업무" 
+                    count={stats.completed} 
+                    items={projects.filter(p => p.status === 'completed')} 
+                    onClickItem={setSelectedProjectId} 
+                    variant="default"
+                    groupByCell
+                  />
                 </div>
               </div>
 
-              <div className="w-full">
-                <table className="w-full text-sm border-collapse">
-                  <thead>
-                    <tr className="border-b-2 border-sleek-bg text-sleek-text-sub sticky top-0 bg-white z-10">
-                      <th className="text-left p-3 font-semibold">작업명</th>
-                      <th className="text-left p-3 font-semibold">상태</th>
-                      <th className="text-left p-3 font-semibold">작업 셀</th>
-                      <th className="text-left p-3 font-semibold">마감일</th>
-                      <th className="text-left p-3 font-semibold">진행율</th>
-                      <th className="text-left p-3 font-semibold">PM</th>
-                      <th className="text-left p-3 font-semibold">이슈</th>
-                      <th className="text-left p-3 font-semibold">시안</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {filteredProjects.map(p => (
-                      <tr 
-                        key={p.id} 
-                        className={cn(
-                          "border-b border-sleek-bg hover:bg-slate-50 transition-colors cursor-pointer",
-                          filterStatus !== 'all' && p.status === filterStatus ? "bg-blue-50/50" : filterStatus !== 'all' ? "opacity-40" : ""
-                        )}
-                        onClick={() => setSelectedProjectId(p.id)}
-                      >
-                        <td className="p-3 font-medium text-slate-800">{p.name}</td>
-                        <td className="p-3">
-                          <StatusTag status={p.status} />
-                        </td>
-                        <td className="p-3">
-                          <Badge variant="outline" className="text-[10px] font-bold border-slate-200 text-slate-500">
-                            {p.taskCell}
-                          </Badge>
-                        </td>
-                        <td className="p-3 text-slate-500">{p.deadline || '-'}</td>
-                        <td className="p-3">
-                          <div className="flex items-center gap-3">
-                            <div className="w-24 h-2 bg-slate-100 rounded-full overflow-hidden">
-                              <div 
-                                className="h-full bg-sleek-primary transition-all duration-500" 
-                                style={{ width: `${p.progress}%`, backgroundColor: p.status === 'issue' ? 'var(--color-sleek-danger)' : p.status === 'completed' ? 'var(--color-sleek-success)' : undefined }}
-                              />
-                            </div>
-                            <span className="text-[10px] font-bold text-slate-400">{p.progress}%</span>
-                          </div>
-                        </td>
-                        <td className="p-3">
-                          <div className="flex items-center gap-2">
-                            <div className="w-7 h-7 rounded-full bg-sleek-primary flex items-center justify-center text-[10px] text-white font-bold">
-                              {p.pm[0]}
-                            </div>
-                            <span className="font-medium text-slate-700">{p.pm}</span>
-                          </div>
-                        </td>
-                        <td className="p-3">
-                          <Badge variant="secondary" className={cn("text-xs px-2 h-5", p.issues.length > 0 && "bg-red-100 text-red-600")}>
-                            {p.issues.length}
-                          </Badge>
-                        </td>
-                        <td className="p-3">
-                          {p.draftConfirmed ? (
-                            <CheckCircle2 size={18} className="text-sleek-primary" />
-                          ) : (
-                            <span className="text-slate-300">-</span>
-                          )}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+              {/* Right Side: Issues, Upcoming, Regular (50%) */}
+              <div className="w-1/2 flex flex-col gap-4">
+                <div className="flex-1">
+                  <MiniSection 
+                    title="이슈 사항" 
+                    count={stats.issue} 
+                    items={projects.filter(p => p.issues.length > 0)} 
+                    onClickItem={setSelectedProjectId} 
+                    variant="danger"
+                  />
+                </div>
+                <div className="flex-1">
+                  <MiniSection 
+                    title="예정 프로젝트" 
+                    count={stats.upcoming} 
+                    items={projects.filter(p => p.status === 'upcoming')} 
+                    onClickItem={setSelectedProjectId} 
+                    variant="warning"
+                    groupByCell
+                  />
+                </div>
+                <div className="flex-1">
+                  <MiniSection 
+                    title="상시 업무" 
+                    count={stats.regular} 
+                    items={projects.filter(p => p.status === 'regular')} 
+                    onClickItem={setSelectedProjectId} 
+                    variant="info"
+                    groupByCell
+                  />
+                </div>
               </div>
             </div>
           </div>
@@ -672,8 +608,8 @@ function ProjectDetailView({ project, isEditing, setIsEditing, onUpdate, onBack 
         </div>
       </header>
 
-      <ScrollArea className="flex-1 p-8">
-        <div className="max-w-5xl mx-auto space-y-10">
+      <ScrollArea className="flex-1 p-8 bg-white">
+        <div className="w-full space-y-10">
           {/* Basic Info Section */}
           <section className="bg-white rounded-2xl shadow-sm border border-slate-100 p-8 space-y-8">
             <div className="flex items-center justify-between border-b border-slate-50 pb-4">
@@ -762,6 +698,7 @@ function ProjectDetailView({ project, isEditing, setIsEditing, onUpdate, onBack 
                   isEditing={isEditing}
                   onAdd={(v) => handleAddItem('tasks', v)}
                   onRemove={(i) => handleRemoveItem('tasks', i)}
+                  inputWidth="400px"
                 />
               </div>
             </section>
@@ -834,7 +771,7 @@ function DetailItem({ label, value, isEditing, children }: { label: string, valu
       <Label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider ml-0.5">{label}</Label>
       <div className={cn(
         "transition-all",
-        !isEditing && "bg-slate-50/50 rounded-lg p-3 border border-slate-100/50 hover:bg-white hover:border-slate-200 hover:shadow-sm"
+        !isEditing && "bg-white rounded-lg p-3 border border-slate-100 hover:border-slate-300 hover:shadow-sm"
       )}>
         {isEditing ? children : <p className="text-sm font-bold text-slate-700">{value}</p>}
       </div>
@@ -842,7 +779,7 @@ function DetailItem({ label, value, isEditing, children }: { label: string, valu
   );
 }
 
-function DetailList({ label, items, isEditing, onAdd, onRemove, isDanger = false, isLink = false, layout = 'list' }: { 
+function DetailList({ label, items, isEditing, onAdd, onRemove, isDanger = false, isLink = false, layout = 'list', inputWidth }: { 
   label: string, 
   items: string[], 
   isEditing: boolean, 
@@ -850,7 +787,8 @@ function DetailList({ label, items, isEditing, onAdd, onRemove, isDanger = false
   onRemove: (i: number) => void,
   isDanger?: boolean,
   isLink?: boolean,
-  layout?: 'list' | 'grid'
+  layout?: 'list' | 'grid',
+  inputWidth?: string
 }) {
   const [input, setInput] = useState('');
 
@@ -862,7 +800,8 @@ function DetailList({ label, items, isEditing, onAdd, onRemove, isDanger = false
           <div className="flex gap-2">
             <Input 
               size={1}
-              className="h-8 text-xs w-32" 
+              className="h-8 text-xs" 
+              style={{ width: inputWidth || '128px' }}
               placeholder="추가..." 
               value={input}
               onChange={e => setInput(e.target.value)}
@@ -997,17 +936,17 @@ function MiniSection({ title, count, items, variant = 'default', groupByCell = f
 
   return (
     <div className={cn(
-      "p-6 rounded-xl shadow-sm min-h-[200px] flex flex-col border transition-all",
+      "p-6 rounded-xl shadow-sm flex flex-col border transition-all h-full",
       variantStyles[variant],
-      variant === 'primary' && "scale-[1.02] shadow-md z-10"
+      variant === 'primary' && "shadow-md z-10"
     )}>
-      <div className="flex items-center justify-between mb-4">
+      <div className="flex items-center justify-between mb-4 shrink-0">
         <h4 className={cn("text-sm font-bold uppercase tracking-tight", titleStyles[variant])}>{title}</h4>
         <Badge className={cn("text-xs px-2.5 h-6 font-bold", badgeStyles[variant])}>
           {count}
         </Badge>
       </div>
-      <div className="flex-1 -mx-2 px-2">
+      <ScrollArea className="flex-1 -mx-2 px-2">
         <div className="space-y-4">
           {(Object.entries(groupedItems) as [string, Project[]][]).map(([cell, cellItems]) => (
             <div key={cell} className="space-y-1.5">
@@ -1051,7 +990,7 @@ function MiniSection({ title, count, items, variant = 'default', groupByCell = f
             </div>
           )}
         </div>
-      </div>
+      </ScrollArea>
     </div>
   );
 }
