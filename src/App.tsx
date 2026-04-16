@@ -608,7 +608,7 @@ function ProjectDetailView({ project, isEditing, setIsEditing, onUpdate, onBack 
         </div>
       </header>
 
-      <ScrollArea className="flex-1 p-8 bg-white">
+      <div className="flex-1 overflow-y-auto p-8 bg-white">
         <div className="w-full space-y-10">
           {/* Basic Info Section */}
           <section className="bg-white rounded-2xl shadow-sm border border-slate-100 p-8 space-y-8">
@@ -760,7 +760,7 @@ function ProjectDetailView({ project, isEditing, setIsEditing, onUpdate, onBack 
             </section>
           )}
         </div>
-      </ScrollArea>
+      </div>
     </div>
   );
 }
@@ -961,25 +961,48 @@ function MiniSection({ title, count, items, variant = 'default', groupByCell = f
                 <div 
                   key={item.id} 
                   onClick={() => onClickItem(item.id)}
-                  className="flex flex-col text-sm py-2 border-b border-black/5 last:border-0 cursor-pointer hover:bg-slate-50 rounded px-2 transition-colors"
+                  className="flex items-center justify-between text-sm py-3 border-b border-black/5 last:border-0 cursor-pointer hover:bg-slate-50 rounded px-2 transition-colors"
                 >
-                  <div className="flex items-center justify-between w-full">
-                    <span className="truncate pr-2 font-semibold text-slate-700">
+                  <div className="flex items-center gap-3 flex-1 min-w-0">
+                    <span className="truncate font-semibold text-slate-700">
                       {variant === 'danger' && item.issues.length > 0 ? item.issues[0] : item.name}
                     </span>
-                    {variant !== 'danger' && (
-                      <span className={cn(
-                        "font-bold shrink-0 text-sleek-primary"
-                      )}>
-                        {item.status === 'upcoming' ? `D-${Math.floor(Math.random() * 30)}` : `${item.progress}%`}
+                    {variant === 'primary' && item.issues.length > 0 && (
+                      <div className="flex items-center gap-1 shrink-0">
+                        <span className="text-[11px] font-bold text-red-600">이슈</span>
+                        <div className="w-5 h-5 rounded-full bg-red-100 flex items-center justify-center text-[10px] text-red-600 font-bold">
+                          {item.issues.length}
+                        </div>
+                      </div>
+                    )}
+                    {variant === 'danger' && (
+                      <span className="text-[10px] text-slate-400 font-medium truncate">
+                        프로젝트: {item.name}
                       </span>
                     )}
                   </div>
-                  {variant === 'danger' && (
-                    <span className="text-[10px] text-slate-400 font-medium mt-0.5 truncate">
-                      프로젝트: {item.name}
-                    </span>
-                  )}
+
+                  <div className="flex items-center gap-6 shrink-0 ml-4">
+                    {variant === 'primary' && (
+                      <div className="flex items-center gap-2">
+                        <div className="w-7 h-7 rounded-full bg-sleek-primary flex items-center justify-center text-[9px] text-white font-bold shrink-0">
+                          {item.pm[0]}
+                        </div>
+                        <span className="text-[12px] text-slate-600 font-medium whitespace-nowrap">{item.pm}</span>
+                      </div>
+                    )}
+
+                    {variant !== 'danger' && (
+                      <div className="flex items-center gap-2 min-w-[70px] justify-end">
+                        {variant !== 'warning' && (
+                          <span className="text-[11px] font-medium text-sleek-primary/60">진행율</span>
+                        )}
+                        <span className="font-bold text-sleek-primary text-sm">
+                          {item.status === 'upcoming' ? `D-${Math.floor(Math.random() * 30)}` : `${item.progress}%`}
+                        </span>
+                      </div>
+                    )}
+                  </div>
                 </div>
               ))}
             </div>
