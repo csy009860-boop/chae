@@ -21,30 +21,14 @@ service cloud.firestore {
     //   - tasks: list of strings
     //   - draftConfirmed: bool
     //   - attachments: list of strings
-    //   - uid: string (required, owner)
+    //   - uid: string (optional, owner)
     //   - createdAt: string (required, ISO date-time)
     //
     // ===============================================================
 
-    // ===============================================================
-    // Helper Functions
-    // ===============================================================
-    function isAuthenticated() {
-      return request.auth != null;
-    }
-
-    function isOwner(userId) {
-      return isAuthenticated() && request.auth.uid == userId;
-    }
-
-    function isDocOwner() {
-      return isAuthenticated() && request.auth.uid == resource.data.uid;
-    }
-
     function isValidProject(data) {
       return data.name is string && data.name.size() > 0 && data.name.size() < 200 &&
              data.status in ['ongoing', 'upcoming', 'regular', 'issue', 'completed'] &&
-             data.uid == request.auth.uid &&
              data.createdAt is string &&
              (!('progress' in data) || (data.progress is number && data.progress >= 0 && data.progress <= 100)) &&
              (!('assignees' in data) || data.assignees is list) &&
@@ -54,10 +38,10 @@ service cloud.firestore {
     }
 
     match /projects/{projectId} {
-      allow read: if isAuthenticated() && isDocOwner();
-      allow create: if isAuthenticated() && isValidProject(request.resource.data);
-      allow update: if isAuthenticated() && isDocOwner() && isValidProject(request.resource.data);
-      allow delete: if isAuthenticated() && isDocOwner();
+      allow read: if true;
+      allow create: if isValidProject(request.resource.data);
+      allow update: if isValidProject(request.resource.data);
+      allow delete: if true;
     }
   }
 }

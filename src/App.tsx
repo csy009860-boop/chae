@@ -22,9 +22,7 @@ import {
   Image as ImageIcon,
   Video,
   ExternalLink,
-  ArrowLeft,
-  LogOut,
-  LogIn
+  ArrowLeft
 } from 'lucide-react';
 import { 
   Card, 
@@ -59,10 +57,7 @@ import { Project, ProjectStatus } from './types';
 import { cn } from './lib/utils';
 import { format } from 'date-fns';
 import { 
-  auth, 
   db, 
-  signInWithGoogle, 
-  logout, 
   handleFirestoreError, 
   OperationType 
 } from './firebase';
@@ -79,34 +74,17 @@ import {
 } from 'firebase/firestore';
 
 export default function App() {
-  const [user, setUser] = useState(auth.currentUser);
   const [projects, setProjects] = useState<Project[]>([]);
-  const [isAuthReady, setIsAuthReady] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null);
   const [isEditing, setIsEditing] = useState(false);
   const [filterStatus, setFilterStatus] = useState<ProjectStatus | 'all'>('all');
 
-  // Auth Listener
-  useEffect(() => {
-    const unsubscribe = auth.onAuthStateChanged((user) => {
-      setUser(user);
-      setIsAuthReady(true);
-    });
-    return () => unsubscribe();
-  }, []);
-
   // Firestore Listener
   useEffect(() => {
-    if (!user) {
-      setProjects([]);
-      return;
-    }
-
     const q = query(
       collection(db, 'projects'),
-      where('uid', '==', user.uid),
       orderBy('createdAt', 'desc')
     );
 
@@ -121,7 +99,7 @@ export default function App() {
     });
 
     return () => unsubscribe();
-  }, [user]);
+  }, []);
 
   // New Project State
   const [newProject, setNewProject] = useState<Partial<Project>>({
@@ -158,11 +136,10 @@ export default function App() {
   );
 
   const handleAddProject = async () => {
-    if (!user) return;
     try {
       const projectData = {
         ...newProject,
-        uid: user.uid,
+        uid: 'public',
         createdAt: new Date().toISOString(),
         attachments: newProject.attachments || [],
       };
@@ -189,7 +166,6 @@ export default function App() {
   };
 
   const handleUpdateProject = async (updatedProject: Project) => {
-    if (!user) return;
     try {
       const { id, ...data } = updatedProject;
       await updateDoc(doc(db, 'projects', id), data);
@@ -200,7 +176,6 @@ export default function App() {
   };
 
   const handleDeleteProject = async (id: string) => {
-    if (!user) return;
     try {
       await deleteDoc(doc(db, 'projects', id));
       if (selectedProjectId === id) setSelectedProjectId(null);
@@ -275,59 +250,21 @@ export default function App() {
         </nav>
 
         <div className="p-4 border-t border-slate-800">
-          {user ? (
-            <div className="flex flex-col gap-4">
-              <div className="flex items-center gap-3 p-2">
-                <div className="w-8 h-8 bg-sleek-primary rounded-full flex items-center justify-center text-xs font-bold text-white">
-                  {user.displayName?.[0] || user.email?.[0] || 'U'}
-                </div>
-                <div className="overflow-hidden">
-                  <p className="text-xs font-bold truncate text-white">{user.displayName || '사용자'}</p>
-                  <p className="text-[10px] text-slate-500 truncate">{user.email}</p>
-                </div>
-              </div>
-              <Button 
-                variant="ghost" 
-                size="sm" 
-                className="w-full justify-start text-slate-400 hover:text-white hover:bg-slate-800 gap-2"
-                onClick={logout}
-              >
-                <LogOut size={14} /> 로그아웃
-              </Button>
+          <div className="flex items-center gap-3 p-2">
+            <div className="w-8 h-8 bg-sleek-primary rounded-full flex items-center justify-center text-xs font-bold text-white">
+              P
             </div>
-          ) : (
-            <Button 
-              className="w-full bg-sleek-primary hover:bg-blue-600 font-bold gap-2"
-              onClick={signInWithGoogle}
-            >
-              <LogIn size={16} /> 구글 로그인
-            </Button>
-          )}
+            <div className="overflow-hidden">
+              <p className="text-xs font-bold truncate text-white">공용 모드</p>
+              <p className="text-[10px] text-slate-500 truncate">누구나 편집 가능</p>
+            </div>
+          </div>
         </div>
       </aside>
 
       {/* Main Content */}
       <main className="flex-1 flex flex-col overflow-hidden">
-        {!isAuthReady ? (
-          <div className="flex-1 flex items-center justify-center">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-sleek-primary"></div>
-          </div>
-        ) : !user ? (
-          <div className="flex-1 flex flex-col items-center justify-center p-6 text-center">
-            <div className="w-20 h-20 bg-slate-100 rounded-full flex items-center justify-center mb-6">
-              <Briefcase size={40} className="text-slate-300" />
-            </div>
-            <h2 className="text-2xl font-bold text-slate-800 mb-2">프로젝트 관리를 시작하세요</h2>
-            <p className="text-slate-500 mb-8 max-w-md">로그인하여 나만의 프로젝트를 생성하고 실시간으로 관리할 수 있습니다.</p>
-            <Button 
-              size="lg"
-              className="bg-sleek-primary hover:bg-blue-600 font-bold px-8 shadow-lg shadow-blue-200"
-              onClick={signInWithGoogle}
-            >
-              구글 계정으로 시작하기
-            </Button>
-          </div>
-        ) : selectedProject ? (
+        {selectedProject ? (
           <ProjectDetailView 
             project={selectedProject} 
             isEditing={isEditing}
