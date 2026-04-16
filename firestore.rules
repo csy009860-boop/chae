@@ -1,0 +1,63 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // ===============================================================
+    // Assumed Data Model
+    // ===============================================================
+    //
+    // Collection: projects
+    // Document ID: auto-generated
+    // Fields:
+    //   - name: string (required)
+    //   - status: string (required, enum: ongoing, upcoming, regular, issue, completed)
+    //   - taskCell: string
+    //   - deadline: string (ISO date)
+    //   - startDate: string (ISO date)
+    //   - endDate: string (ISO date)
+    //   - progress: number (0-100)
+    //   - pm: string
+    //   - assignees: list of strings
+    //   - issues: list of strings
+    //   - tasks: list of strings
+    //   - draftConfirmed: bool
+    //   - attachments: list of strings
+    //   - uid: string (required, owner)
+    //   - createdAt: string (required, ISO date-time)
+    //
+    // ===============================================================
+
+    // ===============================================================
+    // Helper Functions
+    // ===============================================================
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    function isDocOwner() {
+      return isAuthenticated() && request.auth.uid == resource.data.uid;
+    }
+
+    function isValidProject(data) {
+      return data.name is string && data.name.size() > 0 && data.name.size() < 200 &&
+             data.status in ['ongoing', 'upcoming', 'regular', 'issue', 'completed'] &&
+             data.uid == request.auth.uid &&
+             data.createdAt is string &&
+             (!('progress' in data) || (data.progress is number && data.progress >= 0 && data.progress <= 100)) &&
+             (!('assignees' in data) || data.assignees is list) &&
+             (!('issues' in data) || data.issues is list) &&
+             (!('tasks' in data) || data.tasks is list) &&
+             (!('attachments' in data) || data.attachments is list);
+    }
+
+    match /projects/{projectId} {
+      allow read: if isAuthenticated() && isDocOwner();
+      allow create: if isAuthenticated() && isValidProject(request.resource.data);
+      allow update: if isAuthenticated() && isDocOwner() && isValidProject(request.resource.data);
+      allow delete: if isAuthenticated() && isDocOwner();
+    }
+  }
+}

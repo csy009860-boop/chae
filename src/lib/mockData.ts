@@ -16,6 +16,8 @@ export const mockProjects: Project[] = [
     tasks: ['SNS 광고 시안 제작', '인플루언서 섭외'],
     draftConfirmed: true,
     attachments: ['https://picsum.photos/seed/marketing/800/450'],
+    uid: 'mock-uid',
+    createdAt: new Date().toISOString(),
   },
   {
     id: '2',
@@ -32,6 +34,8 @@ export const mockProjects: Project[] = [
     tasks: ['메인 페이지 퍼블리싱', '로그인 기능 구현'],
     draftConfirmed: false,
     attachments: [],
+    uid: 'mock-uid',
+    createdAt: new Date().toISOString(),
   },
   {
     id: '3',
@@ -48,6 +52,8 @@ export const mockProjects: Project[] = [
     tasks: ['시장 조사', '경쟁사 분석'],
     draftConfirmed: false,
     attachments: [],
+    uid: 'mock-uid',
+    createdAt: new Date().toISOString(),
   },
   {
     id: '4',
@@ -64,6 +70,8 @@ export const mockProjects: Project[] = [
     tasks: ['로그 모니터링', '보안 패치'],
     draftConfirmed: true,
     attachments: [],
+    uid: 'mock-uid',
+    createdAt: new Date().toISOString(),
   },
   {
     id: '5',
@@ -80,6 +88,8 @@ export const mockProjects: Project[] = [
     tasks: ['DB 복구 작업', '고객 안내'],
     draftConfirmed: false,
     attachments: [],
+    uid: 'mock-uid',
+    createdAt: new Date().toISOString(),
   },
   {
     id: '6',
@@ -96,5 +106,7 @@ export const mockProjects: Project[] = [
     tasks: ['데이터 취합', '보고서 작성', '이사회 보고'],
     draftConfirmed: true,
     attachments: ['https://picsum.photos/seed/report/800/450'],
+    uid: 'mock-uid',
+    createdAt: new Date().toISOString(),
   },
 ];

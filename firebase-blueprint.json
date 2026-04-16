@@ -1,0 +1,33 @@
+{
+  "entities": {
+    "Project": {
+      "title": "Project",
+      "description": "A project managed in the dashboard",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string", "description": "Project name" },
+        "status": { "type": "string", "enum": ["ongoing", "upcoming", "regular", "issue", "completed"], "description": "Current status" },
+        "taskCell": { "type": "string", "description": "Responsible cell" },
+        "deadline": { "type": "string", "format": "date", "description": "Project deadline" },
+        "startDate": { "type": "string", "format": "date", "description": "Start date" },
+        "endDate": { "type": "string", "format": "date", "description": "End date" },
+        "progress": { "type": "number", "description": "Progress percentage" },
+        "pm": { "type": "string", "description": "Project Manager" },
+        "assignees": { "type": "array", "items": { "type": "string" }, "description": "List of assignees" },
+        "issues": { "type": "array", "items": { "type": "string" }, "description": "List of issues" },
+        "tasks": { "type": "array", "items": { "type": "string" }, "description": "List of tasks" },
+        "draftConfirmed": { "type": "boolean", "description": "Whether the draft is confirmed" },
+        "attachments": { "type": "array", "items": { "type": "string" }, "description": "List of attachment URLs" },
+        "uid": { "type": "string", "description": "Owner user ID" },
+        "createdAt": { "type": "string", "format": "date-time", "description": "Creation timestamp" }
+      },
+      "required": ["name", "status", "uid", "createdAt"]
+    }
+  },
+  "firestore": {
+    "/projects/{projectId}": {
+      "schema": "Project",
+      "description": "Collection of projects"
+    }
+  }
+}

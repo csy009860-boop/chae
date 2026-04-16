@@ -16,6 +16,8 @@ export interface Project {
   tasks: string[];
   draftConfirmed: boolean;
   attachments?: string[];
+  uid: string;
+  createdAt: string;
 }
 
 export interface DashboardStats {
