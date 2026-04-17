@@ -55,9 +55,42 @@
         "email": { "type": "string", "format": "email", "description": "Email address" }
       },
       "required": ["index", "name", "rank", "role", "cell", "contact", "email"]
+    },
+    "PreviewSync": {
+      "title": "PreviewSync",
+      "description": "Session data for syncing preview across windows",
+      "type": "object",
+      "properties": {
+        "url": { "type": "string", "description": "Currently active preview URL" },
+        "updatedAt": { "type": "string", "format": "date-time", "description": "Last update time" }
+      },
+      "required": ["url", "updatedAt"]
+    },
+    "DraftComment": {
+      "title": "DraftComment",
+      "description": "A comment pinned to a draft image",
+      "type": "object",
+      "properties": {
+        "draftUrl": { "type": "string", "description": "URL of the draft this comment belongs to" },
+        "x": { "type": "number", "description": "X coordinate percentage" },
+        "y": { "type": "number", "description": "Y coordinate percentage" },
+        "content": { "type": "string", "description": "Comment text content" },
+        "author": { "type": "string", "description": "Author name" },
+        "createdAt": { "type": "string", "description": "Creation timestamp (ISO string or timestamp)" },
+        "status": { "type": "string", "enum": ["open", "resolved"], "description": "Status of the comment" }
+      },
+      "required": ["draftUrl", "x", "y", "content", "author", "createdAt", "status"]
     }
   },
   "firestore": {
+    "/draft_comments/{commentId}": {
+      "schema": "DraftComment",
+      "description": "Collection of draft comments"
+    },
+    "/preview_sync/{sessionId}": {
+      "schema": "PreviewSync",
+      "description": "Cross-window synchronization for draft previews"
+    },
     "/projects/{projectId}": {
       "schema": "Project",
       "description": "Collection of projects"

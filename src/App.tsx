@@ -80,6 +80,7 @@ import {
   serverTimestamp
 } from 'firebase/firestore';
 import CalendarView from './components/CalendarView';
+import DraftWorkspace from './components/DraftWorkspace';
 
 export default function App() {
   const [projects, setProjects] = useState<Project[]>([]);
@@ -422,40 +423,12 @@ export default function App() {
   };
 
   if (isPreviewMode) {
-    return (
-      <div className="w-screen h-screen bg-slate-900 flex flex-col overflow-hidden">
-        <div className="h-14 bg-slate-950 flex items-center justify-between px-6 border-b border-white/5">
-          <div className="flex items-center gap-3">
-            <div className="w-2 h-2 rounded-full bg-blue-500 animate-pulse" />
-            <h1 className="text-white font-bold tracking-tight">실시간 시안 모니터 (연동됨)</h1>
-          </div>
-          <div className="flex items-center gap-4 text-slate-400 text-xs font-medium">
-            대시보드와 동기화 중...
-          </div>
-        </div>
-        <div className="flex-1 bg-slate-800 flex items-center justify-center p-8">
-          {activePreviewUrl ? (
-            <div className="relative w-full h-full flex items-center justify-center">
-              <img 
-                src={activePreviewUrl} 
-                alt="Preview Target" 
-                className="max-w-full max-h-full object-contain shadow-2xl rounded-lg"
-                referrerPolicy="no-referrer"
-              />
-            </div>
-          ) : (
-            <div className="text-slate-400 flex flex-col items-center gap-4">
-              <Monitor size={48} strokeWidth={1.5} />
-              <p className="font-medium">대시보드에서 시안을 선택해주세요</p>
-            </div>
-          )}
-        </div>
-      </div>
-    );
+    return <DraftWorkspace activePreviewUrl={activePreviewUrl} />;
   }
 
   return (
     <div className="flex h-screen bg-sleek-bg text-sleek-text-main">
+
       {/* Sidebar */}
       <aside className="w-80 bg-sleek-sidebar text-white flex flex-col shrink-0">
         <div className="p-6 pb-8">

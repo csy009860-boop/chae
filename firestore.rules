@@ -83,6 +83,33 @@ service cloud.firestore {
              data.email is string && isValidEmail(data.email);
     }
 
+    function isValidPreviewSync(data) {
+      return data.keys().hasAll(['url', 'updatedAt']) &&
+             data.url is string &&
+             data.updatedAt is timestamp;
+    }
+
+    function isValidDraftComment(data) {
+      return data.keys().hasAll(['draftUrl', 'x', 'y', 'content', 'author', 'createdAt', 'status']) &&
+             data.draftUrl is string &&
+             data.x is number && data.x >= 0 && data.x <= 100 &&
+             data.y is number && data.y >= 0 && data.y <= 100 &&
+             data.content is string && data.content.size() > 0 && data.content.size() < 1000 &&
+             data.author is string &&
+             data.createdAt is string &&
+             data.status in ['open', 'resolved'];
+    }
+
+    match /preview_sync/{sessionId} {
+      allow read, write: if true;
+    }
+
+    match /draft_comments/{commentId} {
+      allow read: if true;
+      allow create, update: if isValidDraftComment(request.resource.data);
+      allow delete: if true;
+    }
+
     match /projects/{projectId} {
       allow read: if true;
       allow create, update: if isValidProject(request.resource.data);
