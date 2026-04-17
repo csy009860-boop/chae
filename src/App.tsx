@@ -24,7 +24,9 @@ import {
   Image as ImageIcon,
   Video,
   ExternalLink,
-  ArrowLeft
+  ArrowLeft,
+  Maximize2,
+  Monitor
 } from 'lucide-react';
 import { 
   Card, 
@@ -58,6 +60,7 @@ import { Separator } from '@/components/ui/separator';
 import { Project, ProjectStatus, TeamMember } from './types';
 import { cn } from './lib/utils';
 import { format, differenceInDays, parseISO, startOfDay } from 'date-fns';
+import { motion, AnimatePresence } from 'motion/react';
 import { 
   db, 
   handleFirestoreError, 
@@ -72,7 +75,9 @@ import {
   onSnapshot, 
   query, 
   where, 
-  orderBy 
+  orderBy,
+  setDoc,
+  serverTimestamp
 } from 'firebase/firestore';
 import CalendarView from './components/CalendarView';
 
@@ -85,7 +90,81 @@ export default function App() {
   const [isEditing, setIsEditing] = useState(false);
   const [currentView, setCurrentView] = useState<'dashboard' | 'calendar' | 'team'>('dashboard');
   const [dashboardProjectTab, setDashboardProjectTab] = useState<'ongoing' | 'completed'>('ongoing');
+  const [activePreviewUrl, setActivePreviewUrl] = useState<string | null>(null);
+  const [isPreviewMode] = useState(() => {
+    return new URLSearchParams(window.location.search).get('view') === 'preview';
+  });
+  const [sessionId] = useState(() => {
+    const params = new URLSearchParams(window.location.search);
+    const sid = params.get('sid');
+    if (sid) return sid;
+    
+    // For dashboard, generate or retrieve from session storage
+    let localSid = sessionStorage.getItem('preview_session_id');
+    if (!localSid) {
+      localSid = `sid_${Math.random().toString(36).substring(2, 11)}`;
+      sessionStorage.setItem('preview_session_id', localSid);
+    }
+    return localSid;
+  });
   const [isMemberModalOpen, setIsMemberModalOpen] = useState(false);
+
+  // Database-Driven Sync (Receiver & Listener Logic)
+  useEffect(() => {
+    // 1. BroadcastChannel (Quick local sync fallback)
+    const channel = new BroadcastChannel('draft_preview_sync');
+    channel.onmessage = (event) => {
+      if (event.data?.type === 'UPDATE_PREVIEW') {
+        setActivePreviewUrl(event.data.url);
+      }
+    };
+
+    // 2. LocalStorage Sync (Reliable local fallback)
+    const handleStorage = (e: StorageEvent) => {
+      if (e.key === `active_draft_${sessionId}` && e.newValue) {
+        setActivePreviewUrl(e.newValue);
+      }
+    };
+    window.addEventListener('storage', handleStorage);
+
+    // 3. Firestore Sync (Ultimate cloud sync - works everywhere)
+    const syncDocRef = doc(db, 'preview_sync', sessionId);
+    const unsubscribeSync = onSnapshot(syncDocRef, (snapshot) => {
+      if (snapshot.exists()) {
+        const data = snapshot.data();
+        if (data.url && data.url !== activePreviewUrl) {
+          setActivePreviewUrl(data.url);
+        }
+      }
+    });
+
+    return () => {
+      channel.close();
+      window.removeEventListener('storage', handleStorage);
+      unsubscribeSync();
+    };
+  }, [isPreviewMode, sessionId]);
+
+  // Sync Global Broadcaster (Sender Logic)
+  useEffect(() => {
+    if (activePreviewUrl && !isPreviewMode) {
+      // A. Update Firestore (Best for cross-tab/cross-origin)
+      const syncDocRef = doc(db, 'preview_sync', sessionId);
+      setDoc(syncDocRef, { 
+        url: activePreviewUrl, 
+        updatedAt: serverTimestamp() 
+      }).catch(err => console.error("Sync Error:", err));
+
+      // B. Update LocalStorage
+      localStorage.setItem(`active_draft_${sessionId}`, activePreviewUrl);
+      
+      // C. Broadcast
+      const channel = new BroadcastChannel('draft_preview_sync');
+      channel.postMessage({ type: 'UPDATE_PREVIEW', url: activePreviewUrl });
+      channel.close();
+    }
+  }, [activePreviewUrl, isPreviewMode, sessionId]);
+
   const [isEditMemberModalOpen, setIsEditMemberModalOpen] = useState(false);
   const [editingMember, setEditingMember] = useState<TeamMember | null>(null);
   const [newMember, setNewMember] = useState<Partial<TeamMember>>({
@@ -342,6 +421,39 @@ export default function App() {
     });
   };
 
+  if (isPreviewMode) {
+    return (
+      <div className="w-screen h-screen bg-slate-900 flex flex-col overflow-hidden">
+        <div className="h-14 bg-slate-950 flex items-center justify-between px-6 border-b border-white/5">
+          <div className="flex items-center gap-3">
+            <div className="w-2 h-2 rounded-full bg-blue-500 animate-pulse" />
+            <h1 className="text-white font-bold tracking-tight">실시간 시안 모니터 (연동됨)</h1>
+          </div>
+          <div className="flex items-center gap-4 text-slate-400 text-xs font-medium">
+            대시보드와 동기화 중...
+          </div>
+        </div>
+        <div className="flex-1 bg-slate-800 flex items-center justify-center p-8">
+          {activePreviewUrl ? (
+            <div className="relative w-full h-full flex items-center justify-center">
+              <img 
+                src={activePreviewUrl} 
+                alt="Preview Target" 
+                className="max-w-full max-h-full object-contain shadow-2xl rounded-lg"
+                referrerPolicy="no-referrer"
+              />
+            </div>
+          ) : (
+            <div className="text-slate-400 flex flex-col items-center gap-4">
+              <Monitor size={48} strokeWidth={1.5} />
+              <p className="font-medium">대시보드에서 시안을 선택해주세요</p>
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="flex h-screen bg-sleek-bg text-sleek-text-main">
       {/* Sidebar */}
@@ -439,7 +551,11 @@ export default function App() {
             isEditing={isEditing}
             setIsEditing={setIsEditing}
             onUpdate={handleUpdateProject}
-            onBack={() => setSelectedProjectId(null)}
+            onBack={() => {
+              setSelectedProjectId(null);
+              setIsEditing(false);
+            }}
+            onPreview={setActivePreviewUrl}
           />
         ) : currentView === 'calendar' ? (
           <CalendarView 
@@ -984,18 +1100,30 @@ export default function App() {
             </DialogFooter>
           </DialogContent>
         </Dialog>
+
+        {/* Synced Floating Preview Window */}
+        <AnimatePresence mode="wait">
+          {activePreviewUrl && (
+            <PreviewWindow 
+              url={activePreviewUrl} 
+              onClose={() => setActivePreviewUrl(null)} 
+              sessionId={sessionId}
+            />
+          )}
+        </AnimatePresence>
       </main>
     </div>
   );
 }
 
-function ProjectDetailView({ project, teamMembers, isEditing, setIsEditing, onUpdate, onBack }: { 
+function ProjectDetailView({ project, teamMembers, isEditing, setIsEditing, onUpdate, onBack, onPreview }: { 
   project: Project, 
   teamMembers: TeamMember[],
   isEditing: boolean, 
   setIsEditing: (v: boolean) => void,
   onUpdate: (p: Project) => void,
-  onBack: () => void
+  onBack: () => void,
+  onPreview: (url: string) => void
 }) {
   const [editData, setEditData] = useState<Project>(project);
 
@@ -1226,14 +1354,15 @@ function ProjectDetailView({ project, teamMembers, isEditing, setIsEditing, onUp
                     ) : (
                       <img src={url} alt={`Attachment ${i}`} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
                     )}
-                    <a 
-                      href={url} 
-                      target="_blank" 
-                      rel="noopener noreferrer"
-                      className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-white"
+                    <div 
+                      onClick={() => onPreview(url)}
+                      className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-white cursor-pointer"
                     >
-                      <ExternalLink size={24} />
-                    </a>
+                      <div className="flex flex-col items-center gap-2">
+                        <ImageIcon size={24} />
+                        <span className="text-[10px] font-bold">시안 크게 보기</span>
+                      </div>
+                    </div>
                   </div>
                 ))}
               </div>
@@ -1510,6 +1639,79 @@ function getDDay(startDateStr: string) {
   } catch (e) {
     return 'D-?';
   }
+}
+
+function PreviewWindow({ url, onClose, sessionId }: { url: string, onClose: () => void, sessionId: string }) {
+  const isVideo = url.match(/\.(mp4|webm|ogg)$/i) || url.includes('youtube') || url.includes('vimeo');
+
+  const openExternal = () => {
+    // Open the current location with a special query param and pass SID
+    const previewUrl = window.location.origin + `?view=preview&sid=${sessionId}`;
+    window.open(previewUrl, 'DraftPreview', 'width=1200,height=800');
+  };
+
+  return (
+    <motion.div 
+      initial={{ opacity: 0, scale: 0.95, y: 20, x: 0 }}
+      animate={{ opacity: 1, scale: 1, y: 0, x: 0 }}
+      exit={{ opacity: 0, scale: 0.95, y: 20 }}
+      drag
+      dragMomentum={false}
+      className="fixed bottom-8 right-8 w-[400px] h-[550px] bg-white rounded-2xl shadow-[0_20px_50px_rgba(0,0,0,0.2)] border border-slate-200 z-[100] flex flex-col overflow-hidden"
+    >
+      <div className="h-12 bg-slate-900 flex items-center justify-between px-4 cursor-move shrink-0">
+        <div className="flex items-center gap-2">
+          <ImageIcon size={16} className="text-blue-400" />
+          <span className="text-sm font-bold text-white tracking-tight">시안 미리보기 (연동됨)</span>
+        </div>
+        <div className="flex items-center gap-1">
+          <button 
+            onClick={openExternal}
+            className="p-1.5 text-slate-400 hover:text-white transition-colors flex items-center gap-1"
+            title="새 창으로 열기 (듀얼 모니터용)"
+          >
+            <Maximize2 size={16} />
+          </button>
+          <button onClick={onClose} className="p-1.5 text-slate-400 hover:text-white transition-colors">
+            <X size={20} />
+          </button>
+        </div>
+      </div>
+      <div className="flex-1 bg-slate-100 flex items-center justify-center p-4 overflow-hidden">
+        {isVideo ? (
+          <div className="flex flex-col items-center gap-4 text-slate-400">
+            <Video size={48} />
+            <Button variant="outline" className="text-xs bg-white" onClick={() => window.open(url, '_blank')}>
+              외부 창에서 보기
+            </Button>
+          </div>
+        ) : (
+          <img 
+            src={url} 
+            alt="Preview" 
+            className="max-w-full max-h-full object-contain rounded-lg shadow-md"
+            referrerPolicy="no-referrer"
+          />
+        )}
+      </div>
+      <div className="p-4 bg-white border-t border-slate-100 space-y-3 shrink-0">
+        <div className="flex items-center justify-between">
+          <span className="text-xs font-bold text-slate-800">원본 소스</span>
+          <a 
+            href={url} 
+            target="_blank" 
+            rel="noopener noreferrer" 
+            className="text-[11px] font-bold text-sleek-primary hover:underline flex items-center gap-1"
+          >
+            원본 사이트 이동 <ExternalLink size={12} />
+          </a>
+        </div>
+        <p className="text-[10px] text-slate-400 break-all bg-slate-50 p-2 rounded-lg border border-slate-100 max-h-16 overflow-y-auto">
+          {url}
+        </p>
+      </div>
+    </motion.div>
+  );
 }
 
 function MiniSection({ 
