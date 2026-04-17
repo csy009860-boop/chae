@@ -9,12 +9,14 @@ import {
   Trash2, 
   Search, 
   Bell, 
+  Users,
   User,
   CheckCircle2,
   Clock,
   ChevronRight,
   MoreVertical,
   PlusCircle,
+  RotateCcw,
   Edit3,
   Save,
   X,
@@ -53,7 +55,7 @@ import {
 } from '@/components/ui/select';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Separator } from '@/components/ui/separator';
-import { Project, ProjectStatus } from './types';
+import { Project, ProjectStatus, TeamMember } from './types';
 import { cn } from './lib/utils';
 import { format } from 'date-fns';
 import { 
@@ -76,11 +78,24 @@ import CalendarView from './components/CalendarView';
 
 export default function App() {
   const [projects, setProjects] = useState<Project[]>([]);
+  const [teamMembers, setTeamMembers] = useState<TeamMember[]>([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null);
   const [isEditing, setIsEditing] = useState(false);
-  const [currentView, setCurrentView] = useState<'dashboard' | 'calendar'>('dashboard');
+  const [currentView, setCurrentView] = useState<'dashboard' | 'calendar' | 'team'>('dashboard');
+  const [dashboardProjectTab, setDashboardProjectTab] = useState<'ongoing' | 'completed'>('ongoing');
+  const [isMemberModalOpen, setIsMemberModalOpen] = useState(false);
+  const [isEditMemberModalOpen, setIsEditMemberModalOpen] = useState(false);
+  const [editingMember, setEditingMember] = useState<TeamMember | null>(null);
+  const [newMember, setNewMember] = useState<Partial<TeamMember>>({
+    name: '',
+    rank: '연구원',
+    role: '팀원',
+    cell: 'UX셀',
+    contact: '',
+    email: ''
+  });
 
   // Firestore Listener
   useEffect(() => {
@@ -115,6 +130,51 @@ export default function App() {
 
     return () => unsubscribe();
   }, []);
+
+  // Team Members Listener
+  useEffect(() => {
+    const q = query(collection(db, 'teamMembers'), orderBy('index', 'asc'));
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as TeamMember));
+      setTeamMembers(data);
+      
+      // Auto-seed if empty
+      if (snapshot.empty) {
+        seedTeamMembers();
+      }
+    }, (error) => {
+      handleFirestoreError(error, OperationType.LIST, 'teamMembers');
+    });
+    return () => unsubscribe();
+  }, []);
+
+  const seedTeamMembers = async () => {
+    // Basic check to prevent multiple triggerings if it's already running
+    if (teamMembers.length > 5) return; 
+
+    const members = [
+      { index: 1, name: '신혜영', rank: '수석연구원', role: '팀장', cell: '공통', contact: '010-9595-3511', email: 'shy0622@hanmaceng.co.kr' },
+      { index: 2, name: '정은혜', rank: '책임연구원', role: '셀장', cell: 'UX셀', contact: '010-3378-1154', email: 'b21339@hanmaceng.co.kr' },
+      { index: 3, name: '김태식', rank: '책임연구원', role: '셀장', cell: '영상셀', contact: '010-9965-9940', email: 'b22046@hanmaceng.co.kr' },
+      { index: 4, name: '최혜은', rank: '선임연구원', role: '셀장', cell: '편집셀', contact: '010-3453-2360', email: 'b23060@hanmaceng.co.kr' },
+      { index: 5, name: '채선영', rank: '선임연구원', role: '팀원', cell: 'UX셀', contact: '010-9523-0055', email: 'b24027@hanmaceng.co.kr' },
+      { index: 6, name: '최영환', rank: '선임연구원', role: '팀원', cell: '영상셀', contact: '010-2905-0933', email: 'cyhwan0933@hanmaceng.co.kr' },
+      { index: 7, name: '윤봄이', rank: '선임연구원', role: '팀원', cell: '편집셀', contact: '010-8482-2633', email: 'b24016@hanmaceng.co.kr' },
+      { index: 8, name: '이예진', rank: '선임연구원', role: '팀원', cell: '편집셀', contact: '010-9262-7530', email: 'b23028@hanmaceng.co.kr' },
+      { index: 9, name: '허유나', rank: '선임연구원', role: '팀원', cell: 'UX셀', contact: '010-8870-9345', email: 'b22011@hanmaceng.co.kr' },
+      { index: 10, name: '마희연', rank: '선임연구원', role: '팀원', cell: '편집셀', contact: '010-5336-9812', email: 'b23015@hanmaceng.co.kr' },
+      { index: 11, name: '김수현', rank: '선임연구원', role: '팀원', cell: 'UX셀', contact: '010-5645-5153', email: 'b25027@hanmaceng.co.kr' },
+      { index: 12, name: '박지영', rank: '선임연구원', role: '팀원', cell: '영상셀', contact: '010-9055-4775', email: 'm21438@hanmaceng.co.kr' },
+      { index: 13, name: '권순호', rank: '연구원', role: '팀원', cell: '영상셀', contact: '010-4432-4117', email: 'b22003@hanmaceng.co.kr' },
+      { index: 14, name: '정두휘', rank: '연구원', role: '팀원', cell: '영상셀', contact: '010-5521-6160', email: 'b23014@hanmaceng.co.kr' },
+      { index: 15, name: '김정석', rank: '연구원', role: '팀원', cell: 'UX셀', contact: '010-5209-7757', email: 'b24049@hanmaceng.co.kr' },
+      { index: 16, name: '정지윤', rank: '연구원', role: '팀원', cell: '편집셀', contact: '010-7132-6329', email: 'b25017@hanmaceng.co.kr' },
+      { index: 17, name: '양숙영', rank: '연구원', role: '팀원', cell: '영상셀', contact: '010-7371-7662', email: 'b24012@hanmaceng.co.kr' }
+    ];
+    for (const m of members) {
+      await addDoc(collection(db, 'teamMembers'), m);
+    }
+  };
 
   // New Project State
   const [newProject, setNewProject] = useState<Partial<Project>>({
@@ -199,6 +259,50 @@ export default function App() {
       });
     } catch (error) {
       handleFirestoreError(error, OperationType.CREATE, 'projects');
+    }
+  };
+
+  const handleAddMember = async () => {
+    if (!newMember.name || !newMember.email) return;
+    try {
+      const memberData = {
+        ...newMember,
+        index: (teamMembers.length > 0 ? Math.max(...teamMembers.map(m => m.index)) : 0) + 1,
+      };
+      await addDoc(collection(db, 'teamMembers'), memberData);
+      setIsMemberModalOpen(false);
+      setNewMember({
+        name: '',
+        rank: '연구원',
+        role: '팀원',
+        cell: 'UX셀',
+        contact: '',
+        email: ''
+      });
+    } catch (error) {
+      handleFirestoreError(error, OperationType.CREATE, 'teamMembers');
+    }
+  };
+
+  const handleUpdateMember = async () => {
+    if (!editingMember || !editingMember.id) return;
+    try {
+      const { id, ...data } = editingMember;
+      await updateDoc(doc(db, 'teamMembers', id), data);
+      setIsEditMemberModalOpen(false);
+      setEditingMember(null);
+    } catch (error) {
+      handleFirestoreError(error, OperationType.UPDATE, `teamMembers/${editingMember.id}`);
+    }
+  };
+
+  const handleDeleteMember = async (id: string) => {
+    try {
+      await deleteDoc(doc(db, 'teamMembers', id));
+      setIsEditMemberModalOpen(false);
+      setEditingMember(null);
+    } catch (error) {
+      handleFirestoreError(error, OperationType.DELETE, `teamMembers/${id}`);
     }
   };
 
@@ -299,14 +403,29 @@ export default function App() {
         </nav>
 
         <div className="p-4 border-t border-slate-800">
-          <div className="flex items-center gap-3 p-2">
-            <div className="w-8 h-8 bg-sleek-primary rounded-full flex items-center justify-center text-xs font-bold text-white">
-              P
+          <div className="flex items-center justify-between gap-3 p-1">
+            <div className="flex items-center gap-3 overflow-hidden">
+              <div className="w-8 h-8 bg-sleek-primary rounded-full flex items-center justify-center text-xs font-bold text-white shrink-0">
+                P
+              </div>
+              <div className="overflow-hidden">
+                <p className="text-xs font-bold truncate text-white">공용 모드</p>
+                <p className="text-[10px] text-slate-500 truncate">누구나 편집 가능</p>
+              </div>
             </div>
-            <div className="overflow-hidden">
-              <p className="text-xs font-bold truncate text-white">공용 모드</p>
-              <p className="text-[10px] text-slate-500 truncate">누구나 편집 가능</p>
-            </div>
+            
+            <button 
+              onClick={() => { setCurrentView('team'); setSelectedProjectId(null); setIsEditing(false); }}
+              className={cn(
+                "flex items-center gap-2 px-3 py-2 rounded-lg transition-all border shrink-0",
+                currentView === 'team' 
+                  ? "bg-slate-800 text-white border-slate-700 shadow-lg" 
+                  : "text-slate-500 hover:text-slate-300 border-transparent hover:bg-slate-800/50"
+              )}
+            >
+              <Users size={16} />
+              <span className="text-xs font-bold">인원 관리</span>
+            </button>
           </div>
         </div>
       </aside>
@@ -316,6 +435,7 @@ export default function App() {
         {selectedProject ? (
           <ProjectDetailView 
             project={selectedProject} 
+            teamMembers={teamMembers}
             isEditing={isEditing}
             setIsEditing={setIsEditing}
             onUpdate={handleUpdateProject}
@@ -324,12 +444,26 @@ export default function App() {
         ) : currentView === 'calendar' ? (
           <CalendarView 
             projects={projects} 
+            teamMembers={teamMembers}
             onSelectProject={(id) => {
               setSelectedProjectId(id);
               setCurrentView('dashboard');
               setIsEditing(false);
             }}
             onDeleteProject={handleDeleteProject}
+          />
+        ) : currentView === 'team' ? (
+          <TeamMemberListView 
+            members={teamMembers} 
+            onAddClick={() => setIsMemberModalOpen(true)}
+            onEditClick={(member) => {
+              setEditingMember(member);
+              setIsEditMemberModalOpen(true);
+            }}
+            onResetSeed={() => {
+              // Only seed if drastically fewer members than expected
+              if (teamMembers.length < 5) seedTeamMembers();
+            }}
           />
         ) : (
           <div className="flex-1 flex flex-col p-6 gap-6 overflow-y-auto">
@@ -363,33 +497,47 @@ export default function App() {
               <StatCard 
                 title="이슈 사항" 
                 value={stats.issue} 
-                color="var(--color-sleek-danger)" 
+                color="#dc2626" // red-600
               />
             </div>
 
             {/* Content Grid - Redesigned Layout */}
             <div className="flex gap-6">
-              {/* Left Side: Ongoing & Completed Projects (50%) */}
-              <div className="w-1/2 flex flex-col gap-6">
-                <div>
-                  <MiniSection 
-                    title="진행중 프로젝트" 
-                    count={stats.ongoing} 
-                    items={projects.filter(p => p.status === 'ongoing')} 
-                    onClickItem={setSelectedProjectId} 
-                    variant="primary"
-                    groupByCell
-                  />
-                </div>
-                <div>
-                  <MiniSection 
-                    title="완료 프로젝트" 
-                    count={stats.completed} 
-                    items={projects.filter(p => p.status === 'completed')} 
-                    onClickItem={setSelectedProjectId} 
-                    variant="info"
-                    groupByCell
-                  />
+              {/* Left Side: Ongoing & Completed Projects (Consolidated) */}
+              <div className="w-1/2 flex flex-col">
+                <div className="bg-white rounded-xl border border-slate-200 shadow-sm flex flex-col h-full">
+                  <div className="p-4 border-b border-slate-100 flex items-center justify-between bg-slate-50/50 rounded-t-xl">
+                    <div className="flex items-center gap-4">
+                      <button 
+                        onClick={() => setDashboardProjectTab('ongoing')}
+                        className={cn(
+                          "px-4 py-2 rounded-lg text-sm font-bold transition-all",
+                          dashboardProjectTab === 'ongoing' ? "bg-sleek-primary text-white shadow-md" : "text-slate-500 hover:text-slate-700"
+                        )}
+                      >
+                        진행 프로젝트 ({stats.ongoing})
+                      </button>
+                      <button 
+                        onClick={() => setDashboardProjectTab('completed')}
+                        className={cn(
+                          "px-4 py-2 rounded-lg text-sm font-bold transition-all",
+                          dashboardProjectTab === 'completed' ? "bg-green-600 text-white shadow-md" : "text-slate-500 hover:text-slate-700"
+                        )}
+                      >
+                        완료 프로젝트 ({stats.completed})
+                      </button>
+                    </div>
+                  </div>
+                  <div className="flex-1 p-6 overflow-y-auto">
+                    <MiniSection 
+                      title={dashboardProjectTab === 'ongoing' ? "진행 프로젝트 목록" : "완료 프로젝트 목록"}
+                      hideHeader
+                      items={projects.filter(p => p.status === dashboardProjectTab)} 
+                      onClickItem={setSelectedProjectId} 
+                      variant={dashboardProjectTab === 'ongoing' ? "primary" : "info"}
+                      groupByCell
+                    />
+                  </div>
                 </div>
               </div>
 
@@ -510,12 +658,21 @@ export default function App() {
                 </div>
                 <div className="space-y-2">
                   <Label className="text-xs font-bold text-slate-500 uppercase">PM (책임자)</Label>
-                  <Input 
+                  <Select 
                     value={newProject.pm} 
-                    onChange={e => setNewProject({...newProject, pm: e.target.value})}
-                    placeholder="프로젝트 매니저 성함"
-                    className="h-11 border-slate-200"
-                  />
+                    onValueChange={v => setNewProject({...newProject, pm: v})}
+                  >
+                    <SelectTrigger className="h-11 border-slate-200">
+                      <SelectValue placeholder="PM 선택" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {teamMembers.map(m => (
+                        <SelectItem key={m.id} value={m.name}>
+                          {m.name} ({m.rank}/{m.cell})
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
                 <div className="space-y-2">
                   <Label className="text-xs font-bold text-slate-500 uppercase">마감일 (직접 입력)</Label>
@@ -570,6 +727,7 @@ export default function App() {
                     items={newProject.assignees || []} 
                     onAdd={(v) => handleAddItem('assignees', v, newProject, setNewProject)} 
                     onRemove={(i) => handleRemoveItem('assignees', i, newProject, setNewProject)}
+                    options={teamMembers.map(m => `${m.name} (${m.rank}/${m.cell})`)}
                   />
                   <DynamicListInput 
                     label="진행 업무 추가" 
@@ -612,13 +770,228 @@ export default function App() {
             </DialogFooter>
           </DialogContent>
         </Dialog>
+        <Dialog open={isMemberModalOpen} onOpenChange={setIsMemberModalOpen}>
+          <DialogContent className="max-w-xl p-0 overflow-hidden border-none shadow-2xl rounded-2xl">
+            <DialogHeader className="p-8 bg-slate-900 text-white">
+              <DialogTitle className="text-2xl font-bold tracking-tight">새로운 팀원 추가</DialogTitle>
+              <p className="text-slate-400 text-sm mt-1">팀 데이터베이스에 새로운 인원을 등록합니다.</p>
+            </DialogHeader>
+
+            <div className="p-8 space-y-6 max-h-[60vh] overflow-y-auto bg-white">
+              <div className="grid grid-cols-2 gap-6">
+                <div className="space-y-2">
+                  <Label className="text-xs font-bold text-slate-500 uppercase">이름</Label>
+                  <Input 
+                    value={newMember.name} 
+                    onChange={e => setNewMember({...newMember, name: e.target.value})}
+                    placeholder="성함을 입력하세요"
+                    className="h-11 border-slate-200"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label className="text-xs font-bold text-slate-500 uppercase">직급</Label>
+                  <Select 
+                    value={newMember.rank} 
+                    onValueChange={v => setNewMember({...newMember, rank: v})}
+                  >
+                    <SelectTrigger className="h-11 border-slate-200">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {['수석연구원', '책임연구원', '선임연구원', '연구원'].map(rank => (
+                        <SelectItem key={rank} value={rank}>{rank}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-6">
+                <div className="space-y-2">
+                  <Label className="text-xs font-bold text-slate-500 uppercase">역할</Label>
+                  <Select 
+                    value={newMember.role} 
+                    onValueChange={v => setNewMember({...newMember, role: v})}
+                  >
+                    <SelectTrigger className="h-11 border-slate-200">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {['팀장', '셀장', '팀원'].map(role => (
+                        <SelectItem key={role} value={role}>{role}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label className="text-xs font-bold text-slate-500 uppercase">소속 셀</Label>
+                  <Select 
+                    value={newMember.cell} 
+                    onValueChange={v => setNewMember({...newMember, cell: v})}
+                  >
+                    <SelectTrigger className="h-11 border-slate-200">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {['공통', 'UX셀', '영상셀', '편집셀'].map(cell => (
+                        <SelectItem key={cell} value={cell}>{cell}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <Label className="text-xs font-bold text-slate-500 uppercase">연락처</Label>
+                <Input 
+                  value={newMember.contact} 
+                  onChange={e => setNewMember({...newMember, contact: e.target.value})}
+                  placeholder="010-0000-0000"
+                  className="h-11 border-slate-200"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label className="text-xs font-bold text-slate-500 uppercase">이메일</Label>
+                <Input 
+                  type="email"
+                  value={newMember.email} 
+                  onChange={e => setNewMember({...newMember, email: e.target.value})}
+                  placeholder="example@hanmaceng.co.kr"
+                  className="h-11 border-slate-200"
+                />
+              </div>
+            </div>
+
+            <DialogFooter className="p-8 bg-slate-50 border-t border-slate-100">
+              <Button variant="ghost" onClick={() => setIsMemberModalOpen(false)} className="h-11 px-8 font-bold text-slate-500">취소</Button>
+              <Button className="h-11 px-10 bg-sleek-primary hover:bg-blue-600 font-bold shadow-lg shadow-blue-200" onClick={handleAddMember}>팀원 추가하기</Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* Edit Member Modal */}
+        <Dialog open={isEditMemberModalOpen} onOpenChange={setIsEditMemberModalOpen}>
+          <DialogContent className="max-w-xl p-0 overflow-hidden border-none shadow-2xl rounded-2xl">
+            <DialogHeader className="p-8 bg-slate-900 text-white">
+              <div className="flex items-center justify-between">
+                <div>
+                  <DialogTitle className="text-2xl font-bold tracking-tight">팀원 정보 수정</DialogTitle>
+                  <p className="text-slate-400 text-sm mt-1">팀원의 정보를 수정하거나 삭제할 수 있습니다.</p>
+                </div>
+                <Button 
+                  variant="destructive" 
+                  size="icon"
+                  className="bg-red-500/20 hover:bg-red-500 text-red-400 hover:text-white transition-all"
+                  onClick={() => editingMember && handleDeleteMember(editingMember.id)}
+                >
+                  <Trash2 size={18} />
+                </Button>
+              </div>
+            </DialogHeader>
+
+            {editingMember && (
+              <div className="p-8 space-y-6 max-h-[60vh] overflow-y-auto bg-white">
+                <div className="grid grid-cols-2 gap-6">
+                  <div className="space-y-2">
+                    <Label className="text-xs font-bold text-slate-500 uppercase">이름</Label>
+                    <Input 
+                      value={editingMember.name} 
+                      onChange={e => setEditingMember({...editingMember, name: e.target.value})}
+                      placeholder="성함을 입력하세요"
+                      className="h-11 border-slate-200"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label className="text-xs font-bold text-slate-500 uppercase">직급</Label>
+                    <Select 
+                      value={editingMember.rank} 
+                      onValueChange={v => setEditingMember({...editingMember, rank: v})}
+                    >
+                      <SelectTrigger className="h-11 border-slate-200">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {['수석연구원', '책임연구원', '선임연구원', '연구원'].map(rank => (
+                          <SelectItem key={rank} value={rank}>{rank}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-6">
+                  <div className="space-y-2">
+                    <Label className="text-xs font-bold text-slate-500 uppercase">역할</Label>
+                    <Select 
+                      value={editingMember.role} 
+                      onValueChange={v => setEditingMember({...editingMember, role: v})}
+                    >
+                      <SelectTrigger className="h-11 border-slate-200">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {['팀장', '셀장', '팀원'].map(role => (
+                          <SelectItem key={role} value={role}>{role}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-2">
+                    <Label className="text-xs font-bold text-slate-500 uppercase">소속 셀</Label>
+                    <Select 
+                      value={editingMember.cell} 
+                      onValueChange={v => setEditingMember({...editingMember, cell: v})}
+                    >
+                      <SelectTrigger className="h-11 border-slate-200">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {['공통', 'UX셀', '영상셀', '편집셀'].map(cell => (
+                          <SelectItem key={cell} value={cell}>{cell}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <Label className="text-xs font-bold text-slate-500 uppercase">연락처</Label>
+                  <Input 
+                    value={editingMember.contact} 
+                    onChange={e => setEditingMember({...editingMember, contact: e.target.value})}
+                    placeholder="010-0000-0000"
+                    className="h-11 border-slate-200"
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label className="text-xs font-bold text-slate-500 uppercase">이메일</Label>
+                  <Input 
+                    type="email"
+                    value={editingMember.email} 
+                    onChange={e => setEditingMember({...editingMember, email: e.target.value})}
+                    placeholder="example@hanmaceng.co.kr"
+                    className="h-11 border-slate-200"
+                  />
+                </div>
+              </div>
+            )}
+
+            <DialogFooter className="p-8 bg-slate-50 border-t border-slate-100">
+              <Button variant="ghost" onClick={() => setIsEditMemberModalOpen(false)} className="h-11 px-8 font-bold text-slate-500">취소</Button>
+              <Button className="h-11 px-10 bg-sleek-primary hover:bg-blue-600 font-bold shadow-lg shadow-blue-200" onClick={handleUpdateMember}>저장하기</Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </main>
     </div>
   );
 }
 
-function ProjectDetailView({ project, isEditing, setIsEditing, onUpdate, onBack }: { 
+function ProjectDetailView({ project, teamMembers, isEditing, setIsEditing, onUpdate, onBack }: { 
   project: Project, 
+  teamMembers: TeamMember[],
   isEditing: boolean, 
   setIsEditing: (v: boolean) => void,
   onUpdate: (p: Project) => void,
@@ -745,7 +1118,16 @@ function ProjectDetailView({ project, isEditing, setIsEditing, onUpdate, onBack 
                 <Input value={editData.collabManager || ''} onChange={e => setEditData({...editData, collabManager: e.target.value})} className="h-9" />
               </DetailItem>
               <DetailItem label="PM" value={project.pm} isEditing={isEditing}>
-                <Input value={editData.pm} onChange={e => setEditData({...editData, pm: e.target.value})} className="h-9" />
+                <Select value={editData.pm} onValueChange={v => setEditData({...editData, pm: v})}>
+                  <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    {teamMembers.map(m => (
+                      <SelectItem key={m.id} value={m.name}>
+                        {m.name} ({m.rank}/{m.cell})
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </DetailItem>
               <DetailItem label="마감일" value={project.deadline} isEditing={isEditing}>
                 <Input value={editData.deadline} onChange={e => setEditData({...editData, deadline: e.target.value})} className="h-9" />
@@ -788,6 +1170,7 @@ function ProjectDetailView({ project, isEditing, setIsEditing, onUpdate, onBack 
                   onAdd={(v) => handleAddItem('assignees', v)}
                   onRemove={(i) => handleRemoveItem('assignees', i)}
                   layout="grid"
+                  options={teamMembers.map(m => `${m.name} (${m.rank}/${m.cell})`)}
                 />
                 <DetailList 
                   label="진행 업무" 
@@ -876,7 +1259,122 @@ function DetailItem({ label, value, isEditing, children }: { label: string, valu
   );
 }
 
-function DetailList({ label, items, isEditing, onAdd, onRemove, isDanger = false, isLink = false, layout = 'list', inputWidth }: { 
+function TeamMemberListView({ 
+  members, 
+  onAddClick,
+  onEditClick,
+  onResetSeed 
+}: { 
+  members: TeamMember[], 
+  onAddClick: () => void,
+  onEditClick: (member: TeamMember) => void,
+  onResetSeed: () => void
+}) {
+  const [search, setSearch] = useState('');
+  
+  const filtered = members.filter(m => 
+    m.name.includes(search) || 
+    m.cell.includes(search) || 
+    m.rank.includes(search) ||
+    m.role.includes(search)
+  );
+
+  return (
+    <div className="flex-1 flex flex-col p-8 gap-8 overflow-y-auto bg-slate-50/30">
+      <div className="flex items-center justify-between">
+        <div>
+          <h2 className="text-2xl font-bold text-slate-800 tracking-tight">인원 데이터베이스</h2>
+          <p className="text-slate-500 text-sm mt-1">팀원들의 정보와 소속을 관리하고 분석합니다.</p>
+        </div>
+        <div className="flex items-center gap-4">
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
+            <Input 
+              placeholder="이름, 셀, 직급 검색..." 
+              value={search}
+              onChange={e => setSearch(e.target.value)}
+              className="pl-10 h-10 w-64 bg-white border-slate-200"
+            />
+          </div>
+          {members.length < 5 && (
+            <Button variant="outline" onClick={onResetSeed} className="gap-2 font-bold border-slate-200">
+              <RotateCcw size={16} /> 데이터 복구
+            </Button>
+          )}
+          <Button 
+            onClick={onAddClick}
+            className="bg-sleek-primary hover:bg-blue-600 gap-2 font-bold shadow-lg shadow-blue-100"
+          >
+            <Plus size={18} /> 인원 추가
+          </Button>
+        </div>
+      </div>
+
+      <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+        <div className="overflow-x-auto">
+          <table className="w-full text-left border-collapse">
+            <thead>
+              <tr className="bg-slate-50/50 border-b border-slate-100">
+                <th className="px-6 py-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest">이름</th>
+                <th className="px-6 py-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest">직급</th>
+                <th className="px-6 py-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest">역할</th>
+                <th className="px-6 py-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest">소속 셀</th>
+                <th className="px-6 py-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest">연락처</th>
+                <th className="px-6 py-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest">이메일</th>
+                <th className="px-6 py-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest text-right">관리</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-50">
+              {filtered.map(member => (
+                <tr key={member.id} className="hover:bg-slate-50/30 transition-colors group">
+                  <td className="px-6 py-4">
+                    <div className="flex items-center gap-3">
+                      <div className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center text-slate-600 font-bold text-xs shrink-0">
+                        {member.name[0]}
+                      </div>
+                      <span className="font-bold text-slate-800 text-sm">{member.name}</span>
+                    </div>
+                  </td>
+                  <td className="px-6 py-4 text-sm text-slate-600">{member.rank}</td>
+                  <td className="px-6 py-4 text-sm text-slate-600">{member.role}</td>
+                  <td className="px-6 py-4">
+                    <Badge variant="outline" className={cn(
+                      "text-[10px] font-bold border-transparent px-2 h-5",
+                      member.cell === 'UX셀' ? "bg-pink-50 text-pink-600" :
+                      member.cell === '영상셀' ? "bg-purple-50 text-purple-600" :
+                      member.cell === '편집셀' ? "bg-cyan-50 text-cyan-600" : "bg-indigo-50 text-indigo-600"
+                    )}>
+                      {member.cell}
+                    </Badge>
+                  </td>
+                  <td className="px-6 py-4 text-sm text-slate-500 font-mono">{member.contact}</td>
+                  <td className="px-6 py-4 text-sm text-slate-500 truncate max-w-[200px]">{member.email}</td>
+                  <td className="px-6 py-4 text-right">
+                    <Button 
+                      variant="ghost" 
+                      size="sm" 
+                      className="h-8 w-8 p-0 text-slate-400 hover:text-blue-600 hover:bg-blue-50/50 rounded-lg opacity-0 group-hover:opacity-100 transition-all"
+                      onClick={() => onEditClick(member)}
+                    >
+                      <Edit3 size={14} /> 
+                    </Button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+        {filtered.length === 0 && (
+          <div className="py-20 text-center text-slate-400">
+            검색 결과가 없습니다.
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function DetailList({ label, items, isEditing, onAdd, onRemove, isDanger = false, isLink = false, layout = 'list', inputWidth, options }: { 
   label: string, 
   items: string[], 
   isEditing: boolean, 
@@ -885,7 +1383,8 @@ function DetailList({ label, items, isEditing, onAdd, onRemove, isDanger = false
   isDanger?: boolean,
   isLink?: boolean,
   layout?: 'list' | 'grid',
-  inputWidth?: string
+  inputWidth?: string,
+  options?: string[]
 }) {
   const [input, setInput] = useState('');
 
@@ -895,23 +1394,38 @@ function DetailList({ label, items, isEditing, onAdd, onRemove, isDanger = false
         <Label className="text-xs font-bold text-slate-500">{label}</Label>
         {isEditing && (
           <div className="flex gap-2">
-            <Input 
-              size={1}
-              className="h-8 text-xs" 
-              style={{ width: inputWidth || '128px' }}
-              placeholder="추가..." 
-              value={input}
-              onChange={e => setInput(e.target.value)}
-              onKeyDown={e => {
-                if (e.key === 'Enter') {
-                  onAdd(input);
-                  setInput('');
-                }
-              }}
-            />
-            <Button size="sm" variant="ghost" className="h-8 w-8 p-0" onClick={() => { onAdd(input); setInput(''); }}>
-              <PlusCircle size={16} className="text-sleek-primary" />
-            </Button>
+            {options ? (
+              <Select value={input} onValueChange={(v) => { onAdd(v); setInput(''); }}>
+                <SelectTrigger className="h-8 text-xs" style={{ width: inputWidth || '160px' }}>
+                  <SelectValue placeholder="선택 추가..." />
+                </SelectTrigger>
+                <SelectContent>
+                  {options.map(opt => (
+                    <SelectItem key={opt} value={opt}>{opt}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            ) : (
+              <Input 
+                size={1}
+                className="h-8 text-xs" 
+                style={{ width: inputWidth || '128px' }}
+                placeholder="추가..." 
+                value={input}
+                onChange={e => setInput(e.target.value)}
+                onKeyDown={e => {
+                  if (e.key === 'Enter') {
+                    onAdd(input);
+                    setInput('');
+                  }
+                }}
+              />
+            )}
+            {!options && (
+              <Button size="sm" variant="ghost" className="h-8 w-8 p-0" onClick={() => { onAdd(input); setInput(''); }}>
+                <PlusCircle size={16} className="text-sleek-primary" />
+              </Button>
+            )}
           </div>
         )}
       </div>
@@ -984,28 +1498,45 @@ function getStatusLabel(status: ProjectStatus) {
   return labels[status];
 }
 
-function MiniSection({ title, count, items, variant = 'default', groupByCell = false, onClickItem }: { 
+function MiniSection({ 
+  title, 
+  count, 
+  items, 
+  variant = 'default', 
+  groupByCell = false, 
+  hideHeader = false,
+  onClickItem 
+}: { 
   title: string, 
-  count: number, 
+  count?: number, 
   items: Project[], 
   variant?: 'default' | 'primary' | 'warning' | 'danger' | 'info',
   groupByCell?: boolean,
+  hideHeader?: boolean,
   onClickItem: (id: string) => void 
 }) {
   const variantStyles = {
-    default: "bg-white border-slate-300 ring-2 ring-slate-100",
+    default: "bg-white border-transparent",
     primary: "bg-white border-blue-200 ring-2 ring-blue-100 shadow-blue-50",
-    warning: "bg-white border-amber-200 ring-2 ring-amber-50",
-    danger: "bg-white border-rose-200 ring-2 ring-rose-50",
+    warning: "bg-white border-transparent",
+    danger: "bg-white border-transparent",
     info: "bg-white border-green-200 ring-2 ring-green-50",
   };
 
   const titleStyles = {
-    default: "text-slate-800",
+    default: "text-slate-900",
     primary: "text-blue-700",
     warning: "text-amber-700",
     danger: "text-rose-700",
     info: "text-green-700",
+  };
+
+  const dotColors = {
+    default: "bg-slate-400",
+    primary: "bg-blue-600",
+    warning: "bg-amber-500",
+    danger: "bg-red-600",
+    info: "bg-green-600",
   };
 
   const badgeStyles = {
@@ -1043,109 +1574,163 @@ function MiniSection({ title, count, items, variant = 'default', groupByCell = f
 
   return (
     <div className={cn(
-      "p-4 rounded-xl shadow-sm flex flex-col border transition-all min-h-[250px]",
-      variantStyles[variant],
-      variant === 'primary' && "shadow-md z-10"
+      "flex flex-col transition-all overflow-hidden",
+      !hideHeader ? "bg-white rounded-xl border border-slate-200 shadow-sm min-h-[250px]" : "bg-transparent border-none shadow-none"
     )}>
-      <div className="flex items-center gap-2 mb-2 shrink-0">
-        <h4 className={cn("text-sm font-bold uppercase tracking-tight", titleStyles[variant])}>{title}</h4>
-        <Badge className={cn("text-xs px-2.5 h-6 font-bold", badgeStyles[variant])}>
-          {count}
-        </Badge>
-      </div>
-      <div className="flex-1 -mx-2 px-2">
-        <div className="space-y-1">
-          {groupedItems.map(([cell, cellItems], groupIndex, groupArray) => (
-            <div key={cell} className="space-y-0">
+      {!hideHeader && (
+        <div className={cn(
+          "p-4 border-b flex items-center gap-2 shrink-0",
+          variant === 'danger' ? "bg-red-50 border-red-100" : "bg-slate-50/50 border-slate-100"
+        )}>
+          <div className={cn("w-1.5 h-1.5 rounded-full", dotColors[variant])} />
+          <h4 className={cn(
+            "text-sm font-bold tracking-tight",
+            variant === 'danger' ? "text-red-700" : "text-slate-500"
+          )}>
+            {title} {count !== undefined && `(${count})`}
+          </h4>
+        </div>
+      )}
+      <div className={cn("flex-1", !hideHeader ? "p-6 overflow-y-auto" : "p-0")}>
+        <div className="space-y-3">
+          {groupedItems.map(([cell, cellItems]) => (
+            <div key={cell} className="flex gap-1">
               {groupByCell && (
-                <div className="flex items-center gap-2 py-1 mt-1">
-                  <div className="h-px flex-1 bg-slate-100"></div>
-                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest px-2">{cell}</span>
-                  <div className="h-px flex-1 bg-slate-100"></div>
+                <div className="flex flex-col items-end shrink-0 pt-3 relative min-w-[32px]">
+                  <div className="flex items-center gap-1 mb-1 absolute right-[1px] top-3">
+                    <span className={cn(
+                      "text-[10px] font-bold text-slate-900 uppercase tracking-widest leading-none",
+                      cell === '공통' ? "text-indigo-600" :
+                      cell === '영상셀' ? "text-purple-600" :
+                      cell === 'UX셀' ? "text-pink-600" :
+                      cell === '편집셀' ? "text-cyan-600" : "text-slate-500"
+                    )}>
+                      {cell.replace('셀', '')}
+                    </span>
+                    <div className={cn(
+                      "w-1 h-1 rounded-full",
+                      cell === '공통' ? "bg-indigo-600" :
+                      cell === '영상셀' ? "bg-purple-600" :
+                      cell === 'UX셀' ? "bg-pink-600" :
+                      cell === '편집셀' ? "bg-cyan-600" : "bg-slate-500"
+                    )} />
+                  </div>
+                  <div className={cn(
+                    "w-px flex-1 mt-3.5 mr-[1.5px] opacity-40",
+                    cell === '공통' ? "bg-indigo-300" :
+                    cell === '영상셀' ? "bg-purple-300" :
+                    cell === 'UX셀' ? "bg-pink-300" :
+                    cell === '편집셀' ? "bg-cyan-300" : "bg-slate-300"
+                  )}></div>
                 </div>
               )}
-              {cellItems.map((item, itemIndex) => (
-                <div 
-                  key={item.id} 
-                  onClick={() => onClickItem(item.id)}
-                  className={cn(
-                    "flex flex-col gap-1 text-sm py-2 border-b border-slate-100 cursor-pointer hover:bg-slate-50/50 rounded-sm px-2 transition-colors",
-                    itemIndex === cellItems.length - 1 && "border-b-0"
-                  )}
-                >
-                  {/* Row 1: Project Name & Progress */}
-                  <div className="flex items-center justify-between w-full">
-                    <div className="flex items-center gap-3 flex-1 min-w-0">
-                      <span className={cn(
-                        "truncate font-bold text-slate-800",
-                        variant === 'primary' ? "text-lg" : "text-sm"
-                      )}>
-                        {variant === 'danger' && item.issues.length > 0 ? item.issues[0] : item.name}
-                      </span>
-                      {item.issues.length > 0 && variant !== 'danger' && (
-                        <div className="flex items-center gap-1 shrink-0">
-                          <span className="text-[11px] font-bold text-rose-500">이슈</span>
-                          <div className="w-5 h-5 rounded-full bg-rose-50 flex items-center justify-center text-[10px] text-rose-500 font-bold">
-                            {item.issues.length}
-                          </div>
-                        </div>
+              <div className="flex-1 space-y-1">
+                {cellItems.map((item, itemIndex) => {
+                  const isIssue = variant === 'danger';
+                  const isUpcoming = variant === 'warning';
+                  const isRegular = variant === 'default';
+                  const isOngoingOrCompleted = variant === 'primary' || variant === 'info';
+
+                  return (
+                    <div 
+                      key={item.id} 
+                      onClick={() => onClickItem(item.id)}
+                      className={cn(
+                        "flex flex-col gap-1 text-sm border-b border-transparent cursor-pointer hover:bg-slate-50/80 rounded-xl px-4 transition-all group",
+                        isOngoingOrCompleted ? "py-4" : "py-1",
+                        itemIndex !== cellItems.length - 1 && "border-slate-50"
                       )}
-                    </div>
-                    {variant !== 'danger' && (
-                      <div className="flex items-center gap-2 shrink-0">
-                        {variant !== 'warning' && (
-                          <span className="text-[11px] font-medium text-sleek-primary/60">진행율</span>
-                        )}
-                        <span className="font-bold text-sleek-primary text-base">
-                          {item.status === 'upcoming' ? `D-${Math.floor(Math.random() * 30)}` : `${item.progress}%`}
-                        </span>
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Row 2: Status, Cell, PM, Assignees, Deadline (Only for Ongoing Projects) */}
-                  {variant === 'primary' && (
-                    <div className="flex items-center justify-between w-full">
-                      <div className="flex items-center gap-4 flex-wrap">
-                        <StatusTag status={item.status} />
-                        <CellBadge taskCell={item.taskCell} />
-                        
-                        <div className="flex items-center gap-2">
-                          <span className="text-[11px] font-bold text-slate-400">PM</span>
-                          <span className="text-[12px] text-slate-700 font-bold">{item.pm}</span>
-                        </div>
-
-                        <div className="flex items-center gap-2">
-                          <span className="text-[11px] font-bold text-slate-400">담당자</span>
-                          <span className="text-[12px] text-slate-700 font-bold truncate max-w-[150px]">
-                            {item.assignees.join(', ')}
+                    >
+                      {/* Row 1: Project Name & Progress */}
+                      <div className="flex items-center justify-between w-full">
+                        <div className="flex items-center gap-3 flex-1 min-w-0">
+                          {item.status === 'ongoing' && !isIssue && (
+                            <div className="px-2 py-0.5 bg-blue-50 text-blue-600 text-[10px] font-bold rounded shrink-0">
+                              진행중
+                            </div>
+                          )}
+                          {item.status === 'completed' && !isIssue && (
+                            <div className="px-2 py-0.5 bg-green-50 text-green-600 text-[10px] font-bold rounded shrink-0">
+                              완료
+                            </div>
+                          )}
+                          <span className={cn(
+                            "truncate font-bold text-slate-800",
+                            isOngoingOrCompleted ? "text-base" : "text-sm"
+                          )}>
+                            {isIssue && item.issues.length > 0 ? item.issues[0] : item.name}
                           </span>
+                          {item.issues.length > 0 && !isIssue && (
+                            <div className="flex items-center gap-1 shrink-0">
+                              <span className="text-[11px] font-bold text-red-500">이슈</span>
+                              <div className="w-5 h-5 rounded-full bg-red-50 flex items-center justify-center text-[10px] text-red-500 font-bold">
+                                {item.issues.length}
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                        <div className="flex items-center gap-2 shrink-0">
+                          {variant !== 'danger' && variant !== 'warning' && (
+                            <span className="text-[11px] font-medium text-sleek-primary/60">진행율</span>
+                          )}
+                          {!isIssue && (
+                            <span className={cn(
+                              "font-bold text-base",
+                              item.status === 'completed' ? "text-green-600" : "text-sleek-primary"
+                            )}>
+                              {item.status === 'upcoming' ? `D-${Math.floor(Math.random() * 30)}` : `${item.progress}%`}
+                            </span>
+                          )}
                         </div>
                       </div>
 
-                      {item.deadline && (
-                        <div className="text-[11px] font-bold text-slate-700 shrink-0">
-                          마감일 - {item.deadline}
+                      {/* Row 2: Metadata (Limited for specific views) */}
+                      {!isUpcoming && !isRegular && (
+                        <div className="flex items-center justify-between w-full">
+                          <div className="flex items-center gap-4 flex-wrap mt-0.5">
+                            {!isIssue && (
+                              <div className="flex items-center gap-2">
+                                <span className="text-[11px] font-bold text-slate-400">작업셀</span>
+                                <span className="text-[12px] text-slate-700 font-bold">
+                                  {item.taskCell.join(', ') || '기타'}
+                                </span>
+                              </div>
+                            )}
+                            
+                            {!isIssue && (
+                              <div className="flex items-center gap-2">
+                                <span className="text-[11px] font-bold text-slate-400">PM</span>
+                                <span className="text-[12px] text-slate-700 font-bold">{item.pm}</span>
+                              </div>
+                            )}
+
+                            {!isIssue && (
+                              <div className="flex items-center gap-2">
+                                <span className="text-[11px] font-bold text-slate-400">담당자</span>
+                                <span className="text-[12px] text-slate-500 font-bold truncate max-w-[250px]">
+                                  {item.assignees.join(', ')}
+                                </span>
+                              </div>
+                            )}
+                          </div>
+
+                          {!isIssue && item.deadline && (
+                            <div className="text-[11px] font-bold text-slate-500 shrink-0">
+                              마감일 - {item.deadline}
+                            </div>
+                          )}
                         </div>
                       )}
+                      
+                      {isIssue && (
+                        <span className="text-[10px] text-slate-400 font-medium truncate block">
+                          프로젝트: {item.name}
+                        </span>
+                      )}
                     </div>
-                  )}
-                  
-                  {variant === 'danger' && (
-                    <span className="text-[10px] text-slate-400 font-medium truncate block">
-                      프로젝트: {item.name}
-                    </span>
-                  )}
-
-                  {item.status === 'completed' && item.deadline && (
-                    <div className="mt-1 flex justify-end">
-                      <span className="text-[11px] font-bold text-slate-500">
-                        마감일 - {item.deadline}
-                      </span>
-                    </div>
-                  )}
-                </div>
-              ))}
+                  );
+                })}
+              </div>
             </div>
           ))}
           {items.length === 0 && (
@@ -1205,12 +1790,13 @@ function StatusTag({ status }: { status: ProjectStatus }) {
   );
 }
 
-function DynamicListInput({ label, items, onAdd, onRemove, placeholder = "추가..." }: { 
+function DynamicListInput({ label, items, onAdd, onRemove, placeholder = "추가...", options }: { 
   label: string, 
   items: string[], 
   onAdd: (val: string) => void, 
   onRemove: (i: number) => void,
-  placeholder?: string
+  placeholder?: string,
+  options?: string[]
 }) {
   const [input, setInput] = useState('');
 
@@ -1219,22 +1805,37 @@ function DynamicListInput({ label, items, onAdd, onRemove, placeholder = "추가
       <div className="flex items-center justify-between">
         <Label className="text-xs font-bold text-slate-500 uppercase tracking-wider">{label}</Label>
         <div className="flex gap-2">
-          <Input 
-            size={1}
-            className="h-9 text-xs w-32 border-slate-200" 
-            placeholder={placeholder} 
-            value={input}
-            onChange={e => setInput(e.target.value)}
-            onKeyDown={e => {
-              if (e.key === 'Enter') {
-                onAdd(input);
-                setInput('');
-              }
-            }}
-          />
-          <Button size="sm" variant="ghost" className="h-9 w-9 p-0 hover:bg-emerald-50" onClick={() => { onAdd(input); setInput(''); }}>
-            <PlusCircle size={18} className="text-sleek-primary" />
-          </Button>
+          {options ? (
+            <Select value={input} onValueChange={(v) => { onAdd(v); setInput(''); }}>
+              <SelectTrigger className="h-9 text-xs w-40 border-slate-200">
+                <SelectValue placeholder="참가자 선택..." />
+              </SelectTrigger>
+              <SelectContent>
+                {options.map(opt => (
+                  <SelectItem key={opt} value={opt}>{opt}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          ) : (
+            <Input 
+              size={1}
+              className="h-9 text-xs w-32 border-slate-200" 
+              placeholder={placeholder} 
+              value={input}
+              onChange={e => setInput(e.target.value)}
+              onKeyDown={e => {
+                if (e.key === 'Enter') {
+                  onAdd(input);
+                  setInput('');
+                }
+              }}
+            />
+          )}
+          {!options && (
+            <Button size="sm" variant="ghost" className="h-9 w-9 p-0 hover:bg-emerald-50" onClick={() => { onAdd(input); setInput(''); }}>
+              <PlusCircle size={18} className="text-sleek-primary" />
+            </Button>
+          )}
         </div>
       </div>
       <div className="flex flex-wrap gap-2 min-h-[2rem]">

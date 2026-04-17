@@ -40,6 +40,21 @@
         "createdAt": { "type": "string", "format": "date-time", "description": "Creation timestamp" }
       },
       "required": ["type", "title", "startDate", "endDate", "cell", "uid", "createdAt"]
+    },
+    "TeamMember": {
+      "title": "TeamMember",
+      "description": "A team member in the organization",
+      "type": "object",
+      "properties": {
+        "index": { "type": "number", "description": "Index number" },
+        "name": { "type": "string", "description": "Full name" },
+        "rank": { "type": "string", "description": "Rank (직급)" },
+        "role": { "type": "string", "description": "Role (직책)" },
+        "cell": { "type": "string", "description": "Assigned cell" },
+        "contact": { "type": "string", "description": "Phone number" },
+        "email": { "type": "string", "format": "email", "description": "Email address" }
+      },
+      "required": ["index", "name", "rank", "role", "cell", "contact", "email"]
     }
   },
   "firestore": {
@@ -50,6 +65,10 @@
     "/teamSchedules/{scheduleId}": {
       "schema": "TeamSchedule",
       "description": "Collection of team member schedules"
+    },
+    "/teamMembers/{memberId}": {
+      "schema": "TeamMember",
+      "description": "Collection of team members"
     }
   }
 }

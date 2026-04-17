@@ -26,19 +26,41 @@ service cloud.firestore {
     //
     // ===============================================================
 
+    // ===============================================================
+    // Helper Functions
+    // ===============================================================
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isValidEmail(email) {
+      return email is string && email.matches("^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$");
+    }
+
     function isValidProject(data) {
-      return data.name is string && data.name.size() > 0 && data.name.size() < 200 &&
+      return data.keys().hasAll(['name', 'status', 'createdAt']) &&
+             data.name is string && data.name.size() > 0 && data.name.size() < 200 &&
              data.status in ['ongoing', 'upcoming', 'regular', 'issue', 'completed'] &&
              data.createdAt is string &&
              (!('progress' in data) || (data.progress is number && data.progress >= 0 && data.progress <= 100)) &&
              (!('assignees' in data) || data.assignees is list) &&
              (!('issues' in data) || data.issues is list) &&
              (!('tasks' in data) || data.tasks is list) &&
-             (!('attachments' in data) || data.attachments is list);
+             (!('attachments' in data) || data.attachments is list) &&
+             (!('uid' in data) || data.uid is string) &&
+             (!('deadline' in data) || data.deadline is string) &&
+             (!('startDate' in data) || data.startDate is string) &&
+             (!('endDate' in data) || data.endDate is string) &&
+             (!('pm' in data) || data.pm is string) &&
+             (!('collabTeam' in data) || data.collabTeam is string) &&
+             (!('collabManager' in data) || data.collabManager is string) &&
+             (!('draftConfirmed' in data) || data.draftConfirmed is bool) &&
+             (!('taskCell' in data) || data.taskCell is list);
     }
 
     function isValidTeamSchedule(data) {
-      return data.type in ['vacation', 'meeting', 'seminar', 'interview'] &&
+      return data.keys().hasAll(['type', 'title', 'startDate', 'endDate', 'cell', 'uid', 'createdAt']) &&
+             data.type in ['vacation', 'meeting', 'seminar', 'interview'] &&
              data.title is string && data.title.size() > 0 && data.title.size() < 200 &&
              data.startDate is string &&
              data.endDate is string &&
@@ -46,20 +68,36 @@ service cloud.firestore {
              data.uid is string &&
              data.createdAt is string &&
              (!('subType' in data) || data.subType in ['annual', 'half', 'time']) &&
-             (!('participants' in data) || data.participants is list);
+             (!('participants' in data) || data.participants is list) &&
+             (!('time' in data) || data.time is string);
+    }
+
+    function isValidTeamMember(data) {
+      return data.keys().hasAll(['index', 'name', 'rank', 'role', 'cell', 'contact', 'email']) &&
+             data.index is number &&
+             data.name is string && data.name.size() > 0 &&
+             data.rank is string &&
+             data.role is string &&
+             data.cell is string &&
+             data.contact is string &&
+             data.email is string && isValidEmail(data.email);
     }
 
     match /projects/{projectId} {
       allow read: if true;
-      allow create: if isValidProject(request.resource.data);
-      allow update: if isValidProject(request.resource.data);
+      allow create, update: if isValidProject(request.resource.data);
       allow delete: if true;
     }
 
     match /teamSchedules/{scheduleId} {
       allow read: if true;
-      allow create: if isValidTeamSchedule(request.resource.data);
-      allow update: if isValidTeamSchedule(request.resource.data);
+      allow create, update: if isValidTeamSchedule(request.resource.data);
+      allow delete: if true;
+    }
+
+    match /teamMembers/{memberId} {
+      allow read: if true;
+      allow create, update: if isValidTeamMember(request.resource.data);
       allow delete: if true;
     }
   }

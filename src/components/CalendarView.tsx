@@ -47,8 +47,8 @@ import {
   SelectValue 
 } from '@/components/ui/select';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Project, TeamSchedule, ScheduleType, VacationType } from '@/types';
-import { db, auth } from '@/firebase';
+import { Project, TeamSchedule, ScheduleType, VacationType, TeamMember } from '@/types';
+import { db, auth, handleFirestoreError, OperationType } from '@/firebase';
 import { collection, addDoc, onSnapshot, query, orderBy, updateDoc, deleteDoc, doc } from 'firebase/firestore';
 
 // Korean Holidays (2024-2025)
@@ -117,8 +117,9 @@ function getCellTextColor(taskCell: string[]) {
   return '#2563eb';
 }
 
-export default function CalendarView({ projects, onSelectProject, onDeleteProject }: { 
+export default function CalendarView({ projects, teamMembers, onSelectProject, onDeleteProject }: { 
   projects: Project[], 
+  teamMembers: TeamMember[],
   onSelectProject: (id: string) => void,
   onDeleteProject: (id: string) => void
 }) {
@@ -149,6 +150,8 @@ export default function CalendarView({ projects, onSelectProject, onDeleteProjec
     const unsubscribe = onSnapshot(q, (snapshot) => {
       const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as TeamSchedule));
       setTeamSchedules(data);
+    }, (error) => {
+      handleFirestoreError(error, OperationType.LIST, 'teamSchedules');
     });
     return () => unsubscribe();
   }, []);
@@ -421,7 +424,7 @@ export default function CalendarView({ projects, onSelectProject, onDeleteProjec
         cell: 'UX셀'
       });
     } catch (error) {
-      console.error("Error saving schedule:", error);
+      handleFirestoreError(error, OperationType.WRITE, 'teamSchedules');
     }
   };
 
@@ -431,7 +434,7 @@ export default function CalendarView({ projects, onSelectProject, onDeleteProjec
       await deleteDoc(doc(db, 'teamSchedules', id));
       setSelectedCalendarSchedule(null);
     } catch (error) {
-      console.error("Error deleting schedule:", error);
+      handleFirestoreError(error, OperationType.DELETE, `teamSchedules/${id}`);
     }
   };
 
@@ -705,14 +708,50 @@ export default function CalendarView({ projects, onSelectProject, onDeleteProjec
             )}
 
             {(newSchedule.type === 'meeting' || newSchedule.type === 'seminar' || newSchedule.type === 'interview') && (
-              <div className="space-y-2">
-                <Label className="text-xs font-bold text-slate-500 uppercase">참석 인원</Label>
-                <Input 
-                  className="h-11 font-bold" 
-                  placeholder="참석자 이름을 쉼표로 구분하여 입력"
-                  value={newSchedule.participants?.join(', ')}
-                  onChange={(e) => setNewSchedule({...newSchedule, participants: e.target.value.split(',').map(s => s.trim())})}
-                />
+              <div className="space-y-4">
+                <div className="space-y-2">
+                  <Label className="text-xs font-bold text-slate-500 uppercase">참석 인원 추가</Label>
+                  <Select 
+                    onValueChange={(v: string) => {
+                      if (!newSchedule.participants?.includes(v)) {
+                        setNewSchedule({
+                          ...newSchedule,
+                          participants: [...(newSchedule.participants || []), v]
+                        });
+                      }
+                    }}
+                  >
+                    <SelectTrigger className="h-11 font-bold">
+                      <SelectValue placeholder="팀원 선택..." />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {teamMembers.map(m => (
+                        <SelectItem key={m.id} value={m.name}>
+                          {m.name} ({m.rank}/{m.cell})
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                
+                {newSchedule.participants && newSchedule.participants.length > 0 && (
+                  <div className="flex flex-wrap gap-2 p-3 bg-slate-50 rounded-lg border border-slate-100">
+                    {newSchedule.participants.map(p => (
+                      <Badge key={p} variant="secondary" className="bg-white text-slate-700 border-slate-200 gap-1 pr-1 py-1">
+                        {p}
+                        <button 
+                          onClick={() => setNewSchedule({
+                            ...newSchedule,
+                            participants: newSchedule.participants?.filter(name => name !== p)
+                          })}
+                          className="ml-1 text-slate-400 hover:text-rose-500 transition-colors"
+                        >
+                          <X size={14} />
+                        </button>
+                      </Badge>
+                    ))}
+                  </div>
+                )}
               </div>
             )}
           </div>

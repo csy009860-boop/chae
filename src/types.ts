@@ -22,6 +22,17 @@ export interface Project {
   createdAt: string;
 }
 
+export interface TeamMember {
+  id: string;
+  index: number;
+  name: string;
+  rank: string;
+  role: string;
+  cell: string;
+  contact: string;
+  email: string;
+}
+
 export interface DashboardStats {
   ongoingCount: number;
   upcomingCount: number;
