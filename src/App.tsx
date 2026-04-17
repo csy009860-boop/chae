@@ -57,7 +57,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Separator } from '@/components/ui/separator';
 import { Project, ProjectStatus, TeamMember } from './types';
 import { cn } from './lib/utils';
-import { format } from 'date-fns';
+import { format, differenceInDays, parseISO, startOfDay } from 'date-fns';
 import { 
   db, 
   handleFirestoreError, 
@@ -1498,6 +1498,20 @@ function getStatusLabel(status: ProjectStatus) {
   return labels[status];
 }
 
+function getDDay(startDateStr: string) {
+  try {
+    const today = startOfDay(new Date());
+    const start = startOfDay(parseISO(startDateStr));
+    const diff = differenceInDays(start, today);
+    
+    if (diff === 0) return 'D-Day';
+    if (diff > 0) return `D-${diff}`;
+    return `D+${Math.abs(diff)}`;
+  } catch (e) {
+    return 'D-?';
+  }
+}
+
 function MiniSection({ 
   title, 
   count, 
@@ -1678,7 +1692,7 @@ function MiniSection({
                               "font-bold text-base",
                               item.status === 'completed' ? "text-green-600" : "text-sleek-primary"
                             )}>
-                              {item.status === 'upcoming' ? `D-${Math.floor(Math.random() * 30)}` : `${item.progress}%`}
+                              {item.status === 'upcoming' ? getDDay(item.startDate) : `${item.progress}%`}
                             </span>
                           )}
                         </div>
