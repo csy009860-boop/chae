@@ -26,7 +26,9 @@ import {
   ExternalLink,
   ArrowLeft,
   Maximize2,
-  Monitor
+  Monitor,
+  PlayCircle,
+  ImageOff
 } from 'lucide-react';
 import { 
   Card, 
@@ -108,6 +110,20 @@ export default function App() {
     }
     return localSid;
   });
+
+  // Parent Window Heartbeat Monitor
+  const [isExternalPreviewOpen, setIsExternalPreviewOpen] = useState(false);
+  useEffect(() => {
+    if (isPreviewMode) return;
+    const checkAlive = () => {
+      const lastPing = parseInt(localStorage.getItem(`external_preview_ping_${sessionId}`) || '0', 10);
+      setIsExternalPreviewOpen((Date.now() - lastPing) < 3000);
+    };
+    checkAlive(); // Check immediately
+    const interval = setInterval(checkAlive, 1000);
+    return () => clearInterval(interval);
+  }, [isPreviewMode, sessionId]);
+
   const [isMemberModalOpen, setIsMemberModalOpen] = useState(false);
 
   // Database-Driven Sync (Receiver & Listener Logic)
@@ -144,6 +160,27 @@ export default function App() {
       window.removeEventListener('storage', handleStorage);
       unsubscribeSync();
     };
+  }, [isPreviewMode, sessionId]);
+
+  // Child Window Heartbeat Registration
+  useEffect(() => {
+    if (isPreviewMode) {
+      const ping = () => {
+        localStorage.setItem(`external_preview_ping_${sessionId}`, Date.now().toString());
+      };
+      ping(); // initial ping
+      const interval = setInterval(ping, 1000);
+      
+      const onUnload = () => {
+        localStorage.setItem(`external_preview_ping_${sessionId}`, '0');
+      };
+      window.addEventListener('beforeunload', onUnload);
+
+      return () => {
+        clearInterval(interval);
+        window.removeEventListener('beforeunload', onUnload);
+      };
+    }
   }, [isPreviewMode, sessionId]);
 
   // Sync Global Broadcaster (Sender Logic)
@@ -1076,16 +1113,68 @@ export default function App() {
 
         {/* Synced Floating Preview Window */}
         <AnimatePresence mode="wait">
-          {activePreviewUrl && (
+          {activePreviewUrl && !isExternalPreviewOpen && (
             <PreviewWindow 
+              key={activePreviewUrl}
               url={activePreviewUrl} 
               onClose={() => setActivePreviewUrl(null)} 
               sessionId={sessionId}
+              onOpenExternal={() => {
+                setIsExternalPreviewOpen(true);
+              }}
             />
           )}
         </AnimatePresence>
       </main>
     </div>
+  );
+}
+
+function AttachmentThumbnail({ url }: { url: string }) {
+  const [hasError, setHasError] = useState(false);
+  const isVideo = url.match(/\.(mp4|webm|ogg)$/i);
+  const isExternalVideo = url.includes('youtube') || url.includes('vimeo');
+
+  useEffect(() => {
+    setHasError(false);
+  }, [url]);
+
+  if (isVideo) {
+    return (
+      <div className="relative w-full h-full bg-slate-900 flex items-center justify-center">
+        {/* Use #t=0.001 trick to fetch first frame as thumbnail for videos */}
+        <video src={`${url}#t=0.001`} className="absolute inset-0 w-full h-full object-cover opacity-80" preload="metadata" muted playsInline />
+        <div className="absolute inset-0 flex items-center justify-center bg-black/20 group-hover:bg-black/40 transition-colors z-10">
+          <PlayCircle size={48} className="text-white opacity-90 drop-shadow-md" />
+        </div>
+      </div>
+    );
+  }
+
+  if (isExternalVideo) {
+    return (
+      <div className="w-full h-full bg-slate-200 flex items-center justify-center group-hover:bg-slate-300 transition-colors">
+        <PlayCircle size={48} className="text-slate-400 group-hover:text-slate-500" />
+      </div>
+    );
+  }
+
+  if (hasError) {
+    return (
+      <div className="w-full h-full bg-slate-100 flex items-center justify-center">
+        <ImageIcon size={48} className="text-slate-300" strokeWidth={1.5} />
+      </div>
+    );
+  }
+
+  return (
+    <img 
+      src={url} 
+      alt="Attachment" 
+      className="w-full h-full object-cover" 
+      referrerPolicy="no-referrer"
+      onError={() => setHasError(true)}
+    />
   );
 }
 
@@ -1320,16 +1409,10 @@ function ProjectDetailView({ project, teamMembers, isEditing, setIsEditing, onUp
               <div className="grid grid-cols-3 gap-6">
                 {project.attachments.map((url, i) => (
                   <div key={i} className="group relative aspect-video bg-slate-100 rounded-xl overflow-hidden border border-slate-200">
-                    {url.match(/\.(mp4|webm|ogg)$/i) || url.includes('youtube') || url.includes('vimeo') ? (
-                      <div className="w-full h-full flex items-center justify-center text-slate-400">
-                        <Video size={32} />
-                      </div>
-                    ) : (
-                      <img src={url} alt={`Attachment ${i}`} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
-                    )}
+                    <AttachmentThumbnail url={url} />
                     <div 
                       onClick={() => onPreview(url)}
-                      className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-white cursor-pointer"
+                      className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-white cursor-pointer z-20"
                     >
                       <div className="flex flex-col items-center gap-2">
                         <ImageIcon size={24} />
@@ -1614,13 +1697,16 @@ function getDDay(startDateStr: string) {
   }
 }
 
-function PreviewWindow({ url, onClose, sessionId }: { url: string, onClose: () => void, sessionId: string }) {
+function PreviewWindow({ url, onClose, sessionId, onOpenExternal }: { url: string, onClose: () => void, sessionId: string, onOpenExternal: () => void }) {
   const isVideo = url.match(/\.(mp4|webm|ogg)$/i) || url.includes('youtube') || url.includes('vimeo');
 
   const openExternal = () => {
     // Open the current location with a special query param and pass SID
     const previewUrl = window.location.origin + `?view=preview&sid=${sessionId}`;
     window.open(previewUrl, 'DraftPreview', 'width=1200,height=800');
+    // Tell parent to immediately hide without waiting for the ping interval (speeds up UX)
+    localStorage.setItem(`external_preview_ping_${sessionId}`, Date.now().toString());
+    onOpenExternal();
   };
 
   return (
@@ -1664,6 +1750,9 @@ function PreviewWindow({ url, onClose, sessionId }: { url: string, onClose: () =
             alt="Preview" 
             className="max-w-full max-h-full object-contain rounded-lg shadow-md"
             referrerPolicy="no-referrer"
+            onError={(e) => {
+              (e.target as HTMLImageElement).src = 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="400" height="300" viewBox="0 0 400 300" fill="%23f1f5f9"><rect width="400" height="300" fill="%23f1f5f9"/><text x="50%" y="50%" dominant-baseline="middle" text-anchor="middle" font-family="sans-serif" font-size="16" font-weight="bold" fill="%2394a3b8">이미지를 불러올 수 없습니다</text></svg>';
+            }}
           />
         )}
       </div>

@@ -354,6 +354,9 @@ function DraftWorkspace({ activePreviewUrl }: { activePreviewUrl: string | null 
                     className="block user-select-none pointer-events-none"
                     draggable={false}
                     referrerPolicy="no-referrer"
+                    onError={(e) => {
+                      (e.target as HTMLImageElement).src = 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="800" height="600" viewBox="0 0 800 600" fill="%23f1f5f9"><rect width="800" height="600" fill="%23f1f5f9"/><text x="50%" y="50%" dominant-baseline="middle" text-anchor="middle" font-family="sans-serif" font-size="24" font-weight="bold" fill="%2394a3b8">이미지를 불러올 수 없습니다</text></svg>';
+                    }}
                   />
                   
                   {/* Render Pins */}
